@@ -925,61 +925,13 @@ function getTutorMatches(req){
   }).filter(Boolean).sort((a,b)=>b.score-a.score);
 }
 
-function renderParentMatches(req){
-  const el = document.getElementById('parent-matches');
-  if(!el) return;
-  const matches = getTutorMatches(req).slice(0,8);
-  if(!matches.length){el.innerHTML='<div class="empty">暂时没有完全符合条件的老师。平台会继续保留您的需求并人工跟进。</div>';return;}
-  el.innerHTML = matches.map(({t,score,reasons}) => {
-    return '<div class="match-card">' +
-      '<div class="match-head"><span class="match-name">' + escapeHtml(t.name) + '</span><span class="match-score">匹配度 ' + Math.min(score,100) + '%</span></div>' +
-      '<div class="meta">' + escapeHtml(formatTutorScopes(t.scopes)) + '</div>' +
-      '<div class="meta">' + escapeHtml(t.rate||'-') + '/小时 · ' + escapeHtml(t.cred||'') + ' · ' + escapeHtml(t.mode||'') + '</div>' +
-      '<div class="meta">服务区域：' + ((t.regions||[]).map(escapeHtml).join(' / ') || '未填写') + '</div>' +
-      '<div class="match-reasons">匹配原因：' + reasons.map(escapeHtml).join(' · ') + '</div>' +
-      '<div class="match-actions"><button type="button" class="primary-mini" onclick="parentInterest(' + Number(t.id) + ')">❤️ 我有兴趣</button></div>' +
-      '</div>';
-  }).join('');
-}
 
-function renderParentList(){
-  const list = parentDocs;
-  const el = document.getElementById('parent-list');
-  if(!list.length){ el.innerHTML = '<div class="empty">目前还没有公开的学生需求。</div>'; return; }
-  el.innerHTML = list.map(r => `
-    <div class="list-item">
-      <div class="top"><span class="name">${escapeHtml(r.subject)} · ${escapeHtml(r.level)}</span><span class="tag">${escapeHtml(r.region||'')}</span></div>
-      <div class="meta">预算: ${escapeHtml(r.budget||'-')}/小时 · ${escapeHtml(r.freq||'')} · 每次${escapeHtml(r.duration||'')}</div>
-      <div class="meta">${escapeHtml(r.mode||'')} · ${escapeHtml(r.timeslot||'')} · 目标：${escapeHtml(r.goal||'')}</div>
-      <div class="meta">老师偏好: ${escapeHtml(r.gender||'不限')} · ${escapeHtml(r.tutortype||'不限')}</div>
-      <button type="button" class="primary-mini" style="width:100%;margin-top:10px;padding:9px;border-radius:9px;border:1px solid var(--accent);" onclick="tutorInterest(${Number(r.id)})">❤️ 我有兴趣</button>
-    </div>
-  `).join('');
-}
 
-function renderTutorSelfList(){
-  const list = tutorDocs;
-  const el = document.getElementById('tutor-self-list');
-  if(!list.length){ el.innerHTML = '<div class="empty">No tutors registered yet</div>'; return; }
-  el.innerHTML = list.map(t => tutorCard(t, 'en')).join('');
-}
 
-function renderTutorBrowse(){
-  let list = tutorDocs;
-  const g = document.getElementById('f-gender').value;
-  const m = document.getElementById('f-mode').value;
-  const rate = document.getElementById('f-rate').value;
-  const s = document.getElementById('f-subject').value;
-  const r = document.getElementById('f-region').value;
-  if(g) list = list.filter(t => t.gender === g);
-  if(m) list = list.filter(t => t.mode === m);
-  if(rate) list = list.filter(t => t.rate === rate);
-  if(s) list = list.filter(t => (t.scopes||[]).some(x => x.subject === s || x.scopeType === 'ALL_SUBJECTS'));
-  if(r) list = list.filter(t => (t.regions||[]).includes(r));
-  const el = document.getElementById('tutor-browse-list');
-  if(!list.length){ el.innerHTML = '<div class="empty">没有符合条件的老师</div>'; return; }
-  el.innerHTML = list.map(t => tutorCard(t, 'zh')).join('');
-}
+
+
+
+
 ['f-gender','f-mode','f-rate','f-region','f-subject'].forEach(id=>{
   const el=document.getElementById(id);
   if(el) el.addEventListener('change', renderTutorBrowse);
