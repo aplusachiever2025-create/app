@@ -179,6 +179,7 @@ async function boot(){
   document.getElementById('login').classList.add('hidden');document.getElementById('dashboard').classList.remove('hidden');
   document.getElementById('who').textContent='管理员：'+(admin.display_name||user.email);
   await loadCases();
+  await runSmartMatch(true);
   await loadDirectory();
   await loadFollowups();
   await loadOpsOverview();
@@ -309,14 +310,14 @@ function renderStats(){
     '<div class="stat"><b>'+confirmed+'</b><span>已成交</span></div>'+
     '<div class="stat"><b>S$'+commission.toFixed(2)+'</b><span>本月佣金</span></div>';
 }
-async function runSmartMatch(){
+async function runSmartMatch(silent=false){
   const buttons=document.querySelectorAll('button');
   const btn=Array.from(buttons).find(x=>x.textContent.includes('运行 SmartMatch'));
   if(btn){btn.disabled=true;btn.textContent='SmartMatch 运行中...'}
   try{
     const {data,error}=await sb.functions.invoke('smartmatch-run',{body:{}});
     if(error) throw error;
-    alert('SmartMatch 完成：扫描 '+(data?.parents_scanned||0)+' 个家长需求、'+(data?.tutors_scanned||0)+' 个老师，找到 '+(data?.candidates||0)+' 个候选，新增 '+(data?.created||0)+' 个撮合案例。');
+    if(!silent) alert('SmartMatch 完成：扫描 '+(data?.parents_scanned||0)+' 个家长需求、'+(data?.tutors_scanned||0)+' 个老师，找到 '+(data?.candidates||0)+' 个候选，新增 '+(data?.created||0)+' 个撮合案例。');
     await loadCases(); await loadOpsOverview();
   }catch(e){
     console.error('SmartMatch error',e);
