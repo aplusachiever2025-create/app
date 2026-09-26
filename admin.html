@@ -295,7 +295,7 @@ function renderTutorDirectory(rows){
   if(!rows.length){el.innerHTML='<div class="meta">暂无老师资料。</div>';return}
   el.innerHTML=rows.map(t=>{
     const active=t.tutor_status==='active';
-    return '<div class="case"><div class="case-head"><div><b>'+esc(t.name||'-')+'</b><div class="meta">'+esc(t.cred||'-')+' · '+esc(t.rate||'-')+' · '+esc(t.contact_phone||'-')+' · '+esc(t.contact_email||'-')+' · WhatsApp '+esc(t.whatsapp||'-')+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'接单中':'已移除')+'</span></div><div class="meta">创建：'+esc(t.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeTutor('+t.id+')">移除老师</button>':'<button onclick="restoreTutor('+t.id+')">重新启用</button>')+'</div></div>';
+    return '<div class="case"><div class="case-head"><div><b>'+esc(t.name||'-')+'</b><div class="meta">'+esc(t.cred||'-')+' · '+esc(t.rate||'-')+' · '+esc(t.contact_phone||'-')+' · '+esc(t.contact_email||'-')+' · WhatsApp '+esc(t.whatsapp||'-')+'</div></div><button onclick="openWhatsApp(\'tutor\',t.whatsapp||t.contact_phone,null)">💬 WhatsApp</button><span class="badge '+(active?'ok':'warn')+'">'+(active?'接单中':'已移除')+'</span></div><div class="meta">创建：'+esc(t.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeTutor('+t.id+')">移除老师</button>':'<button onclick="restoreTutor('+t.id+')">重新启用</button>')+'</div></div>';
   }).join('');
 }
 function closeModal(){document.getElementById('modal').classList.add('hidden');}
