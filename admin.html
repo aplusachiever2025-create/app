@@ -85,13 +85,13 @@ main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);bo
   </div>
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-      <h2 style="margin:0">家长需求管理</h2><button onclick="loadDirectory()">刷新</button>
+      <h2 style="margin:0">家长需求管理</h2><div class="actions" style="margin-top:0"><button onclick="showRemovedDirectory=!showRemovedDirectory;loadDirectory()">显示/隐藏已移除</button><button onclick="loadDirectory()">刷新</button></div>
     </div>
     <div id="parent-directory"></div>
   </div>
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-      <h2 style="margin:0">老师资料管理</h2><button onclick="loadDirectory()">刷新</button>
+      <h2 style="margin:0">老师资料管理</h2><div class="actions" style="margin-top:0"><button onclick="showRemovedDirectory=!showRemovedDirectory;loadDirectory()">显示/隐藏已移除</button><button onclick="loadDirectory()">刷新</button></div>
     </div>
     <div id="tutor-directory"></div>
   </div>
@@ -107,7 +107,7 @@ main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);bo
 </div>
 <script>
 const sb=supabase.createClient(window.SUPABASE_CONFIG.url,window.SUPABASE_CONFIG.anonKey);
-let cases=[];let caseFilter='all';let directoryCache={parents:[],tutors:[]};let followups=[];let warFilter='all';
+let cases=[];let caseFilter='all';let directoryCache={parents:[],tutors:[]};let followups=[];let warFilter='all';let showRemovedDirectory=false;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function normalizeWhatsApp(value){
   let d=String(value||'').replace(/\D/g,'');
@@ -429,11 +429,12 @@ async function loadDirectory(){
   renderStats();
 }
 function renderParentDirectory(rows){
+  if(!showRemovedDirectory) rows=rows.filter(p=>p.request_status!=='removed');
   const el=document.getElementById('parent-directory');
   if(!rows.length){el.innerHTML='<div class="meta">暂无家长需求。</div>';return}
   el.innerHTML=rows.map(p=>{
     const active=p.request_status==='active';
-    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · '+esc(p.contact_email||'-')+' · 微信 '+esc(p.contact_wechat||'-')+' · WhatsApp '+esc(formatWhatsApp(p.contact_whatsapp))+' · '+esc(p.region||'-')+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'开放中':p.request_status==='closed'?'已关闭':'已移除')+'</span></div><div class="actions"><button onclick="openParentWhatsApp('+p.id+')">💬 WhatsApp 家长</button><button onclick="showParent('+p.id+')">查看详情</button></div><div class="meta">预算：'+esc(p.budget||'-')+' · 创建：'+esc(p.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeParent('+p.id+')">移除需求</button>':'<button onclick="restoreParent('+p.id+')">重新开放</button>')+'</div></div>';
+    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · '+esc(p.contact_email||'-')+' · 微信 '+esc(p.contact_wechat||'-')+' · WhatsApp '+esc(formatWhatsApp(p.contact_whatsapp))+' · '+esc(p.region||'-')+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'开放中':p.request_status==='closed'?'已关闭':'已移除')+'</span></div><div class="actions"><button onclick="openParentWhatsApp('+p.id+')">💬 WhatsApp 家长</button><button onclick="showParent('+p.id+')">查看详情</button></div><div class="meta">预算：'+esc(p.budget||'-')+' · 创建：'+esc(p.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeParent('+p.id+')">移除/删除重复</button>':'<button onclick="restoreParent('+p.id+')">重新开放</button>')+'</div></div>';
   }).join('');
 }
 async function openResume(path){
@@ -464,13 +465,14 @@ function tutorListSummary(t){
   return '教学：'+scopes+' · 地区：'+regions+' · 时间：'+times+' · 方式：'+(t.mode||'-')+' · 语言：'+(t.lang||'-')+' · 经验：'+(t.exp||'-')+' · 试听：'+(t.trial||'-');
 }
 function renderTutorDirectory(rows){
+  if(!showRemovedDirectory) rows=rows.filter(t=>t.tutor_status!=='removed');
   const el=document.getElementById('tutor-directory');
   if(!rows.length){el.innerHTML='<div class="meta">暂无老师资料。</div>';return}
   el.innerHTML=rows.map(t=>{
     const active=t.tutor_status==='active';
     const review=t.review_status||'pending';
     const reviewText=review==='verified'?'审核通过':review==='rejected'?'审核不通过':'待审核';
-    return '<div class="case"><div class="case-head"><div><b>'+esc(t.name||'-')+'</b><div class="meta">ID：'+esc(t.public_id||('TU-'+t.id))+' · '+esc(t.cred||'未填写资质')+' · '+esc(t.rate||'未填写收费')+'</div><div class="meta">'+esc(tutorListSummary(t))+'</div><div class="meta">电话：'+esc(t.contact_phone||'-')+' · WhatsApp '+esc(formatWhatsApp(t.whatsapp))+' · Email：'+esc(t.contact_email||'-')+'</div></div><div class="actions" style="margin-top:0"><span class="badge '+(active?'ok':'warn')+'">'+(active?'接单中':'已移除')+'</span><span class="badge '+(review==='verified'?'ok':'warn')+'">'+reviewText+'</span></div></div><div class="meta">履历：'+esc(t.resume_name||'未上传')+' · 创建：'+esc(t.created_at||'-')+'</div><div class="actions"><button onclick="showTutor('+t.id+')">查看完整资料</button><button onclick="openTutorWhatsApp('+t.id+')">💬 WhatsApp</button>'+(t.resume_path?'<button onclick="openResume(\''+esc(t.resume_path).replace(/'/g,"\\'")+'\')">📄 打开履历</button>':'<span class="badge warn">📄 未上传履历</span>')+(review!=='verified'?'<button class="primary" onclick="setTutorReview('+t.id+',\'verified\')">✓ 审核通过</button>':'<button onclick="setTutorReview('+t.id+',\'pending\')">改为待审核</button>')+(active?'<button class="danger" onclick="removeTutor('+t.id+')">移除老师</button>':'<button onclick="restoreTutor('+t.id+')">重新启用</button>')+'</div></div>';
+    return '<div class="case"><div class="case-head"><div><b>'+esc(t.name||'-')+'</b><div class="meta">ID：'+esc(t.public_id||('TU-'+t.id))+' · '+esc(t.cred||'未填写资质')+' · '+esc(t.rate||'未填写收费')+'</div><div class="meta">'+esc(tutorListSummary(t))+'</div><div class="meta">电话：'+esc(t.contact_phone||'-')+' · WhatsApp '+esc(formatWhatsApp(t.whatsapp))+' · Email：'+esc(t.contact_email||'-')+'</div></div><div class="actions" style="margin-top:0"><span class="badge '+(active?'ok':'warn')+'">'+(active?'接单中':'已移除')+'</span><span class="badge '+(review==='verified'?'ok':'warn')+'">'+reviewText+'</span></div></div><div class="meta">履历：'+esc(t.resume_name||'未上传')+' · 创建：'+esc(t.created_at||'-')+'</div><div class="actions"><button onclick="showTutor('+t.id+')">查看完整资料</button><button onclick="openTutorWhatsApp('+t.id+')">💬 WhatsApp</button>'+(t.resume_path?'<button onclick="openResume(\''+esc(t.resume_path).replace(/'/g,"\\'")+'\')">📄 打开履历</button>':'<span class="badge warn">📄 未上传履历</span>')+(review!=='verified'?'<button class="primary" onclick="setTutorReview('+t.id+',\'verified\')">✓ 审核通过</button>':'<button onclick="setTutorReview('+t.id+',\'pending\')">改为待审核</button>')+(active?'<button class="danger" onclick="removeTutor('+t.id+')">移除/删除重复</button>':'<button onclick="restoreTutor('+t.id+')">重新启用</button>')+'</div></div>';
   }).join('');
 }
 function closeModal(){document.getElementById('modal').classList.add('hidden');}
@@ -559,7 +561,7 @@ async function saveCaseTimeline(id){
   await loadCaseTimeline(id);await loadCases();
 }
 async function removeParent(id){
-  const reason=prompt('移除家长需求的原因（可选）：')||'平台移除';
+  const reason=prompt('如果是重复家长，请确认后移除。原因（可选）：')||'平台移除/重复资料';
   const {error}=await sb.from('parent_requests').update({request_status:'removed',removed_at:new Date().toISOString(),removed_reason:reason}).eq('id',id);
   if(error)alert(error.message);else await loadDirectory();
 }
@@ -568,7 +570,7 @@ async function restoreParent(id){
   if(error)alert(error.message);else await loadDirectory();
 }
 async function removeTutor(id){
-  const reason=prompt('移除老师的原因（例如暂不接单）：')||'平台移除';
+  const reason=prompt('如果是重复老师，请确认后移除。原因（可选）：')||'平台移除/重复资料';
   const {error}=await sb.from('tutor_profiles').update({tutor_status:'removed',removed_at:new Date().toISOString(),removed_reason:reason}).eq('id',id);
   if(error)alert(error.message);else await loadDirectory();
 }
