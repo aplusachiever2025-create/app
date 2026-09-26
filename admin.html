@@ -222,10 +222,10 @@ function filterCases(status){caseFilter=status;renderCases();}
 function renderCases(){
   const el=document.getElementById('cases');
   const visible=caseFilter==='all'?cases:cases.filter(x=>x.status===caseFilter);
-  if(!visible.length){el.innerHTML='<div class="meta">还没有撮合案例。家长或老师点击“我有兴趣”后会自动生成案例。</div>';return}
+  if(!visible.length){el.innerHTML='<div class="meta">还没有撮合案例。平台运营人员建立 SmartMatch 案例后会在这里管理整个撮合流程。</div>';return}
   el.innerHTML=visible.map(c=>{
     const p=c.parent_requests||{},t=c.tutor_profiles||{};
-    const statusText={new:'一方有兴趣',both_interested:'双方有兴趣',contacting:'平台沟通中',trial:'已安排试听',confirmed:'已确认成交',not_concluded:'未成交',cancelled:'已取消'}[c.status]||c.status;
+    const statusText={new:'新需求',matched:'已配对',contacting:'平台沟通中',trial:'已安排试听',pending_confirmation:'待确认',confirmed:'已确认成交',ongoing:'进行中',not_concluded:'未成交',cancelled:'已取消'}[c.status]||c.status;
     const form='<div class="formgrid"><div><label>实际课费/小时</label><input id="rate-'+c.id+'" type="number" min="0" step="0.5" value="'+(c.hourly_rate??'')+'" placeholder="50"></div><div><label>单次课时</label><input id="duration-'+c.id+'" type="number" min="0.5" step="0.5" value="'+(c.lesson_duration_hours??'')+'" placeholder="2"></div><div><label>每周次数</label><input id="freq-'+c.id+'" type="number" min="0.5" step="0.5" value="'+(c.lessons_per_week??'')+'" placeholder="2"></div><div><label>首次上课日期</label><input id="date-'+c.id+'" type="date" value="'+(c.first_lesson_date||'')+'"></div></div>';
     const reasons=['家长取消','老师取消','预算不合适','时间不合适','地区不合适','双方沟通后不合适','已自行找到老师','其他'];
     const reasonSelect='<select id="reason-'+c.id+'"><option value="">选择未成交原因</option>'+reasons.map(x=>'<option '+(c.not_concluded_reason===x?'selected':'')+'>'+x+'</option>').join('')+'</select>';
@@ -240,7 +240,7 @@ async function setStatus(id,status){
 }
 async function confirmDeal(id){
   const c=cases.find(x=>x.id===id);if(!c)return;
-  if(c.status!=='both_interested' && c.status!=='contacting' && c.status!=='trial'){alert('只有双方有兴趣后，才能确认成交。');return;}
+  if(!['matched','contacting','trial','pending_confirmation'].includes(c.status)){alert('请先建立配对并完成沟通/试听，再确认成交。');return;}
   const rate=Number(document.getElementById('rate-'+id).value),duration=Number(document.getElementById('duration-'+id).value),freq=Number(document.getElementById('freq-'+id).value),date=document.getElementById('date-'+id).value||null;
   if(!(rate>0&&duration>0)){alert('请填写实际课费和单次课时');return}
   const commission=rate*duration*2;
@@ -303,7 +303,7 @@ function showTutor(id){
 async function showCase(id){
   const c=cases.find(x=>x.id===id);if(!c)return;
   const p=c.parent_requests||{},t=c.tutor_profiles||{};
-  const statusText={new:'一方有兴趣',both_interested:'双方有兴趣',contacting:'平台沟通中',trial:'已安排试听',confirmed:'已确认成交',not_concluded:'未成交',cancelled:'已取消'}[c.status]||c.status;
+  const statusText={new:'新需求',matched:'已配对',contacting:'平台沟通中',trial:'已安排试听',pending_confirmation:'待确认',confirmed:'已确认成交',ongoing:'进行中',not_concluded:'未成交',cancelled:'已取消'}[c.status]||c.status;
   const fields=[
     ['案例状态',statusText],['家长',p.contact_name],['家长电话',p.contact_phone],['家长微信',p.contact_wechat],['家长Email',p.contact_email],
     ['老师',t.name],['老师电话',t.contact_phone],['老师WhatsApp',t.whatsapp],['老师Email',t.contact_email],
