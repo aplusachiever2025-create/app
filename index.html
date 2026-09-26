@@ -102,7 +102,7 @@ button.primary{
 
 <header>
   <h1>SG Tutor Match 🇸🇬</h1>
-  <p>新加坡家长找家教 · 简易撮合演示版</p>
+  <p>新加坡家长找家教 · 平台撮合服务</p>
 </header>
 
 <div class="tabs" role="tablist">
@@ -115,6 +115,15 @@ button.primary{
 
   <div class="panel active" id="panel-parent">
     <div class="card">
+      <div class="section-title" style="margin-top:0;">联系方式</div>
+      <div class="row2">
+        <div><label>家长称呼</label><input id="p-contact-name" placeholder="例如 陈女士"></div>
+        <div><label>WhatsApp / 电话</label><input id="p-contact-phone" placeholder="例如 91234567" inputmode="tel"></div>
+      </div>
+      <label>Email（可选）</label>
+      <input id="p-contact-email" type="email" placeholder="方便平台发送确认信息">
+      <div class="meta" style="margin-top:6px;">联系方式仅供 SG Tutor Match 平台撮合使用，不公开给其他家长或老师。</div>
+
       <label>孩子年级</label>
       <select id="p-level" onchange="updateParentSubjects()">
         <option value="P1">小学一年级 P1</option>
@@ -363,9 +372,9 @@ button.primary{
         <label class="pill"><input type="checkbox" value="东北 North-East" style="width:auto;"> North-East</label>
       </div>
 
-      <label>WhatsApp 联系号码</label>
+      <label>WhatsApp 联系号码（仅平台使用）</label>
       <input id="t-whatsapp" placeholder="例如 91234567 或 +65 91234567" inputmode="tel">
-      <div class="meta" style="margin-top:5px;">用于家长与老师撮合联系，请填写可接收 WhatsApp 的号码。</div>
+      <div class="meta" style="margin-top:5px;">平台撮合时使用，不会直接公开给家长。</div>
 
       <label>About You</label>
       <textarea id="t-bio" placeholder="Your teaching experience, the type of students you work best with, etc."></textarea>
@@ -425,7 +434,7 @@ button.primary{
       </select>
     </div>
     <div class="section-title">符合条件的老师</div>
-    <div id="tutor-browse-list"><div class="empty">还没有老师入驻，去"我是老师"页提交一个试试</div></div>
+    <div id="tutor-browse-list"><div class="empty">还没有老师入驻，去 "I'm a Tutor" 页提交资料</div></div>
   </div>
 
 </main>
@@ -440,6 +449,8 @@ let db = null;
 let parentDocs = [];
 let tutorDocs = [];
 let supabaseClient = null;
+let currentParentRequestId = null;
+let currentTutorId = null;
 
 // 新加坡MOE课程大纲：各年级对应科目（简化整理，供家教平台参考）
 const MOE_SUBJECTS = {
@@ -639,11 +650,12 @@ async function initDb(){
 
 async function refreshSupabaseData(){
   if(!supabaseClient) return;
-  const tutors = await supabaseClient.from('tutor_profiles').select('*').order('created_at',{ascending:false});
+  const tutors = await supabaseClient.from('tutor_public_profiles').select('*').order('created_at',{ascending:false});
   if(tutors.error) throw tutors.error;
-  // Parent requests contain private contact/location information, so they are not publicly queried.
-  parentDocs = [];
+  const parents = await supabaseClient.from('parent_opportunities').select('*').order('created_at',{ascending:false});
+  if(parents.error) throw parents.error;
   tutorDocs = tutors.data || [];
+  parentDocs = parents.data || [];
   renderParentList();
   renderTutorSelfList();
   renderTutorBrowse();
@@ -704,10 +716,13 @@ async function submitParent(){
   const customSubject = document.getElementById('p-custom-subject').value.trim();
   const subject = subjectValue === '__OTHER__' ? customSubject : subjectValue;
   if(subjectValue === '__OTHER__' && !customSubject){ toast('请填写其他科目'); return; }
+  const contactName = document.getElementById('p-contact-name').value.trim();
+  const contactPhone = document.getElementById('p-contact-phone').value.trim();
+  if(!contactName || !contactPhone){ toast('请填写家长称呼和 WhatsApp / 电话'); return; }
   const postcode = document.getElementById('p-postcode').value.replace(/\D/g,'');
   const region = document.getElementById('p-region-select').value;
   const req = {
-    id: Date.now(),
+    id: null,
     level: document.getElementById('p-level').selectedOptions[0].textContent,
     levelCode: document.getElementById('p-level').value,
     subject, lang: document.getElementById('p-lang').value,
@@ -723,26 +738,32 @@ async function submitParent(){
     tutortype: document.getElementById('p-tutortype').value
   };
   try{
-    const { error } = await supabaseClient.from('parent_requests').insert({
+    const { data, error } = await supabaseClient.from('parent_requests').insert({
       level: req.level, subject: req.subject, lang: req.lang, postcode: req.postcode,
       region: req.region, address: req.address, budget: req.budget, freq: req.freq,
       duration: req.duration, timeslot: req.timeslot, goal: req.goal, gender: req.gender,
-      mode: req.mode, tutortype: req.tutortype, notes: document.getElementById('p-notes').value.trim()
-    });
+      mode: req.mode, tutortype: req.tutortype, notes: document.getElementById('p-notes').value.trim(),
+      contact_name: contactName, contact_phone: contactPhone,
+      contact_email: document.getElementById('p-contact-email').value.trim()
+    }).select('id').single();
     if(error) throw error;
+    req.id = data.id;
+    currentParentRequestId = data.id;
     document.getElementById('p-postcode').value = '';
     document.getElementById('p-address').value = '';
     document.getElementById('p-custom-subject').value = '';
     document.getElementById('p-notes').value = '';
+    document.getElementById('p-contact-name').value = '';
+    document.getElementById('p-contact-phone').value = '';
+    document.getElementById('p-contact-email').value = '';
     toggleParentCustomSubject();
     document.getElementById('p-region-hint').textContent = '';
     await refreshSupabaseData();
     renderParentMatches(req);
     document.getElementById('parent-matches').scrollIntoView({behavior:'smooth',block:'start'});
-    toast('需求已发布，正在匹配老师');
-  }catch(e){ toast('发布失败，请重试'); }
+    toast('需求已发布，平台会开始撮合');
+  }catch(e){ console.error(e); toast('发布失败，请重试'); }
 }
-
 async function submitTutor(){
   if(!db){ toast('Database not connected, please try again shortly'); return; }
   const name = document.getElementById('t-name').value.trim();
@@ -751,7 +772,6 @@ async function submitTutor(){
   const regions = Array.from(document.querySelectorAll('#t-regions input:checked')).map(c=>c.value);
   const timeslots = Array.from(document.querySelectorAll('#t-timeslots input:checked')).map(c=>c.value);
   const tutor = {
-    id: Date.now(),
     name, scopes, level: scopes.map(s => `${s.from}-${s.to}`).join(' / '),
     cred: document.getElementById('t-cred').value,
     rate: document.getElementById('t-rate').value,
@@ -765,13 +785,14 @@ async function submitTutor(){
     whatsapp: document.getElementById('t-whatsapp').value.trim()
   };
   try{
-    const { error } = await supabaseClient.from('tutor_profiles').insert({
+    const { data, error } = await supabaseClient.from('tutor_profiles').insert({
       name: tutor.name, scopes: tutor.scopes, level: tutor.level, cred: tutor.cred,
       rate: tutor.rate, gender: tutor.gender, mode: tutor.mode, lang: tutor.lang,
       exp: tutor.exp, trial: tutor.trial, regions: tutor.regions, timeslots: tutor.timeslots,
       bio: tutor.bio, whatsapp: tutor.whatsapp
-    });
+    }).select('id').single();
     if(error) throw error;
+    currentTutorId = data.id;
     document.getElementById('t-name').value = '';
     document.getElementById('t-whatsapp').value = '';
     document.getElementById('t-bio').value = '';
@@ -779,10 +800,9 @@ async function submitTutor(){
     addTutorScope();
     document.querySelectorAll('#t-regions input, #t-timeslots input').forEach(c=>c.checked=false);
     await refreshSupabaseData();
-    toast('Profile submitted');
-  }catch(e){ toast('Submission failed, please try again'); }
+    toast('Profile submitted · 平台会开始寻找匹配需求');
+  }catch(e){ console.error(e); toast('Submission failed, please try again'); }
 }
-
 function normalizeWhatsApp(value){
   const raw = String(value||'').trim();
   if(!raw) return '';
@@ -792,13 +812,26 @@ function normalizeWhatsApp(value){
   return digits;
 }
 
-function whatsappUrl(value, req){
-  const number = normalizeWhatsApp(value);
-  if(!number) return '';
-  const subject = req && req.subject ? req.subject : '家教需求';
-  const level = req && req.level ? req.level : '';
-  const message = '你好，我在 SG Tutor Match 找家教。想咨询 ' + level + ' ' + subject + ' 的补习安排，请问你目前还有空档吗？';
-  return 'https://wa.me/' + number + '?text=' + encodeURIComponent(message);
+async function parentInterest(tutorId){
+  if(!supabaseClient || !currentParentRequestId){ toast('请先发布家教需求'); return; }
+  const { error } = await supabaseClient.from('match_interests').insert({
+    parent_request_id: currentParentRequestId,
+    tutor_id: tutorId,
+    interested_by: 'parent'
+  });
+  if(error && error.code !== '23505'){ console.error(error); toast('提交失败，请重试'); return; }
+  toast('已收到您的兴趣，平台会开始撮合');
+}
+
+async function tutorInterest(parentRequestId){
+  if(!supabaseClient || !currentTutorId){ toast('请先提交老师资料'); return; }
+  const { error } = await supabaseClient.from('match_interests').insert({
+    parent_request_id: parentRequestId,
+    tutor_id: currentTutorId,
+    interested_by: 'tutor'
+  });
+  if(error && error.code !== '23505'){ console.error(error); toast('提交失败，请重试'); return; }
+  toast('已收到您的兴趣，平台会联系双方进行撮合');
 }
 function tutorScopeMatches(scope, levelCode, subject){
   if(!scope || !levelCode) return false;
@@ -885,30 +918,30 @@ function renderParentMatches(req){
   const el = document.getElementById('parent-matches');
   if(!el) return;
   const matches = getTutorMatches(req).slice(0,8);
-  if(!matches.length){el.innerHTML='<div class="empty">暂时没有完全符合条件的老师。可以尝试把预算、地区、性别或授课方式放宽一些。</div>';return;}
+  if(!matches.length){el.innerHTML='<div class="empty">暂时没有完全符合条件的老师。平台会继续保留您的需求并人工跟进。</div>';return;}
   el.innerHTML = matches.map(({t,score,reasons}) => {
-    const card = '<div class="match-card">' +
+    return '<div class="match-card">' +
       '<div class="match-head"><span class="match-name">' + escapeHtml(t.name) + '</span><span class="match-score">匹配度 ' + Math.min(score,100) + '%</span></div>' +
       '<div class="meta">' + escapeHtml(formatTutorScopes(t.scopes)) + '</div>' +
       '<div class="meta">' + escapeHtml(t.rate||'-') + '/小时 · ' + escapeHtml(t.cred||'') + ' · ' + escapeHtml(t.mode||'') + '</div>' +
       '<div class="meta">服务区域：' + ((t.regions||[]).map(escapeHtml).join(' / ') || '未填写') + '</div>' +
       '<div class="match-reasons">匹配原因：' + reasons.map(escapeHtml).join(' · ') + '</div>' +
-      '<div class="match-actions"><button type="button" onclick="window.__switchTab(\'browse\')">查看老师</button>' + (t.whatsapp ? '<a class="primary-mini" style="display:flex;align-items:center;justify-content:center;text-decoration:none;" target="_blank" rel="noopener" href="' + whatsappUrl(t.whatsapp, req) + '">WhatsApp 联系</a>' : '<button type="button" class="primary-mini" onclick="toast(\'这位老师暂未填写 WhatsApp\')">WhatsApp 联系</button>') + '</div>' +
+      '<div class="match-actions"><button type="button" class="primary-mini" onclick="parentInterest(' + Number(t.id) + ')">❤️ 我有兴趣</button></div>' +
       '</div>';
-    return card;
   }).join('');
 }
+
 function renderParentList(){
   const list = parentDocs;
   const el = document.getElementById('parent-list');
-  if(!list.length){ el.innerHTML = '<div class="empty">还没有发布需求</div>'; return; }
+  if(!list.length){ el.innerHTML = '<div class="empty">目前还没有公开的学生需求。</div>'; return; }
   el.innerHTML = list.map(r => `
     <div class="list-item">
-      <div class="top"><span class="name">${escapeHtml(r.subject)} · ${escapeHtml(r.level)}</span><span class="tag">${escapeHtml(r.region)}</span></div>
-      <div class="meta">📍 ${escapeHtml(r.region || '')}</div>
-      <div class="meta">语言: ${escapeHtml(r.lang)} · 预算: ${escapeHtml(r.budget)}/小时 · ${escapeHtml(r.mode||'')}</div>
-      <div class="meta">${escapeHtml(r.freq)} · 每次${escapeHtml(r.duration)} · ${escapeHtml(r.timeslot)} · ${escapeHtml(r.goal)}</div>
+      <div class="top"><span class="name">${escapeHtml(r.subject)} · ${escapeHtml(r.level)}</span><span class="tag">${escapeHtml(r.region||'')}</span></div>
+      <div class="meta">预算: ${escapeHtml(r.budget||'-')}/小时 · ${escapeHtml(r.freq||'')} · 每次${escapeHtml(r.duration||'')}</div>
+      <div class="meta">${escapeHtml(r.mode||'')} · ${escapeHtml(r.timeslot||'')} · 目标：${escapeHtml(r.goal||'')}</div>
       <div class="meta">老师偏好: ${escapeHtml(r.gender||'不限')} · ${escapeHtml(r.tutortype||'不限')}</div>
+      <button type="button" class="primary-mini" style="width:100%;margin-top:10px;padding:9px;border-radius:9px;border:1px solid var(--accent);" onclick="tutorInterest(${Number(r.id)})">❤️ 我有兴趣</button>
     </div>
   `).join('');
 }
