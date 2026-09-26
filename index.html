@@ -108,7 +108,7 @@ button.primary{
 <div class="tabs" role="tablist">
   <button type="button" class="tab active" data-tab="parent" role="tab" aria-selected="true" onclick="window.__switchTab('parent')">我是家长</button>
   <button type="button" class="tab" data-tab="tutor" role="tab" aria-selected="false" onclick="window.__switchTab('tutor')">I'm a Tutor</button>
-  <button type="button" class="tab" data-tab="browse" role="tab" aria-selected="false" onclick="window.__switchTab('browse')">浏览老师</button>
+  <button type="button" class="tab" data-tab="browse" role="tab" aria-selected="false" onclick="window.__switchTab('browse')">SmartMatch 状态</button>
 </div>
 
 <main>
@@ -118,10 +118,12 @@ button.primary{
       <div class="section-title" style="margin-top:0;">联系方式</div>
       <div class="row2">
         <div><label>家长称呼</label><input id="p-contact-name" placeholder="例如 陈女士"></div>
-        <div><label>WhatsApp / 电话</label><input id="p-contact-phone" placeholder="例如 91234567" inputmode="tel"></div>
+        <div><label>联系电话</label><input id="p-contact-phone" placeholder="例如 91234567" inputmode="tel"></div>
       </div>
       <label>Email（可选）</label>
       <input id="p-contact-email" type="email" placeholder="方便平台发送确认信息">
+      <label>WhatsApp（可选，仅平台使用）</label>
+      <input id="p-contact-whatsapp" placeholder="例如 91234567 或 +65 91234567" inputmode="tel">
       <label>微信号（可选，仅平台使用）</label>
       <input id="p-contact-wechat" placeholder="例如 WeChat ID">
       <div class="meta" style="margin-top:8px;font-weight:700;">备注：联系方式仅供 Tutor SmartMatch 平台撮合使用，不公开给其他家长或老师。</div>
@@ -269,10 +271,10 @@ button.primary{
       <button class="primary" onclick="submitParent()">发布找家教需求</button>
     </div>
 
-    <div class="section-title">为你匹配的老师</div>
-    <div id="parent-matches"><div class="empty">发布需求后，系统会根据年级、科目、预算、授课方式和地区等条件匹配老师。</div></div>
+    <div class="section-title">🎯 SmartMatch 进行中</div>
+    <div id="parent-matches"><div class="empty">发布需求后，SG Tutor Match 会在后台为你寻找并人工撮合合适的老师。你不需要浏览老师，也不需要自己选择老师。</div></div>
 
-    <div class="section-title">家长需求</div>
+    <div class="section-title">撮合状态</div>
     <div id="parent-list"><div class="empty">家长需求提交后会进入匹配流程，不公开显示个人地址和联系方式。</div></div>
   </div>
 
@@ -390,6 +392,10 @@ button.primary{
 
       <label>About You</label>
       <textarea id="t-bio" placeholder="Your teaching experience, the type of students you work best with, etc."></textarea>
+
+      <label>上传履历（可选，PDF / DOC / DOCX）</label>
+      <input id="t-resume" type="file" accept=".pdf,.doc,.docx">
+      <div class="meta" style="margin-top:5px;">履历仅供 SG Tutor Match 平台审核与 SmartMatch 使用，不会公开给家长。</div>
 
       <button class="primary" onclick="submitTutor()">Submit Tutor Profile</button>
     </div>
@@ -757,7 +763,8 @@ async function submitParent(){
       mode: req.mode, tutortype: req.tutortype, notes: document.getElementById('p-notes').value.trim(),
       contact_name: contactName, contact_phone: contactPhone,
       contact_email: document.getElementById('p-contact-email').value.trim(),
-      contact_wechat: document.getElementById('p-contact-wechat').value.trim()
+      contact_wechat: document.getElementById('p-contact-wechat').value.trim(),
+      contact_whatsapp: document.getElementById('p-contact-whatsapp').value.trim()
     }).select('id').single();
     if(error) throw error;
     req.id = data.id;
@@ -771,6 +778,7 @@ async function submitParent(){
     document.getElementById('p-contact-phone').value = '';
     document.getElementById('p-contact-email').value = '';
     document.getElementById('p-contact-wechat').value = '';
+    document.getElementById('p-contact-whatsapp').value = '';
     toggleParentCustomSubject();
     document.getElementById('p-region-hint').textContent = '';
     await refreshSupabaseData();
@@ -799,7 +807,8 @@ async function submitTutor(){
     bio: document.getElementById('t-bio').value.trim(),
     contact_email: document.getElementById('t-email').value.trim(),
     contact_phone: document.getElementById('t-phone').value.trim(),
-    whatsapp: document.getElementById('t-whatsapp').value.trim()
+    whatsapp: document.getElementById('t-whatsapp').value.trim(),
+    resumeFile: document.getElementById('t-resume')?.files?.[0] || null
   };
   try{
     const { data, error } = await supabaseClient.from('tutor_profiles').insert({
@@ -811,11 +820,22 @@ async function submitTutor(){
     }).select('id').single();
     if(error) throw error;
     currentTutorId = data.id;
+    if(tutor.resumeFile){
+      try{
+        const safeName = tutor.resumeFile.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+        const path = 'tutor-' + data.id + '/' + Date.now() + '-' + safeName;
+        const up = await supabaseClient.storage.from('tutor-resumes').upload(path, tutor.resumeFile, {upsert:false});
+        if(!up.error){
+          await supabaseClient.from('tutor_profiles').update({resume_path:path,resume_name:tutor.resumeFile.name,review_status:'pending'}).eq('id',data.id);
+        }
+      }catch(uploadErr){ console.warn('Resume upload skipped:', uploadErr); }
+    }
     sessionStorage.setItem('sgtm_tutor_id', String(data.id));
     document.getElementById('t-name').value = '';
     document.getElementById('t-email').value = '';
     document.getElementById('t-phone').value = '';
     document.getElementById('t-whatsapp').value = '';
+    if(document.getElementById('t-resume')) document.getElementById('t-resume').value = '';
     document.getElementById('t-bio').value = '';
     document.getElementById('t-scopes').innerHTML = '';
     addTutorScope();
@@ -1049,6 +1069,28 @@ function tutorCard(t, lang){
 function escapeHtml(s){
   return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+
+
+// SmartMatch-only frontend: users submit profiles; they do not browse or express interest in other users.
+function renderParentMatches(req){
+  const el=document.getElementById('parent-matches'); if(!el) return;
+  el.innerHTML='<div class="match-card"><div class="match-head"><span class="match-name">🎯 SmartMatch 正在进行</span><span class="match-score">后台撮合</span></div><div class="meta">我们会根据年级、科目、预算、授课方式、地区、时间和老师偏好进行匹配。</div><div class="match-reasons">你不需要自己浏览或选择老师。平台运营人员会在合适阶段联系你。</div></div>';
+}
+function renderParentList(){
+  const el=document.getElementById('parent-list'); if(el) el.innerHTML='<div class="empty">你的需求不会公开给其他家长或老师。</div>';
+}
+function renderTutorSelfList(){
+  const el=document.getElementById('tutor-self-list'); if(el) el.innerHTML='<div class="empty">🎯 资料已进入 SmartMatch。平台会根据学生需求进行撮合。</div>';
+}
+function renderTutorBrowse(){
+  const el=document.getElementById('tutor-browse-list'); if(el) el.innerHTML='<div class="empty">🎯 这里显示你的 SmartMatch 状态。老师和家长不会在前台互相浏览资料。</div>';
+}
+const oldSwitchTab=window.__switchTab;
+window.__switchTab=function(name){
+  if(name==='browse') name='tutor';
+  if(typeof oldSwitchTab==='function') oldSwitchTab(name);
+  const p=document.getElementById('panel-browse'); if(p) p.classList.remove('active');
+};
 
 try { initDb(); } catch (err) { console.warn('App initialization failed:', err); }
 </script>
