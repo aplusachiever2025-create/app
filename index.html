@@ -624,13 +624,11 @@ async function initDb(){
 }
 
 async function refreshSupabaseData(){
+  // SmartMatch 模式下，前台不再读取或展示其他家长/老师资料。
+  // 只维护当前浏览器会话中的提交状态，所有真实撮合数据由后台处理。
   if(!supabaseClient) return;
-  const tutors = await supabaseClient.from('tutor_public_profiles').select('*').order('created_at',{ascending:false});
-  if(tutors.error) throw tutors.error;
-  const parents = await supabaseClient.from('parent_opportunities').select('*').order('created_at',{ascending:false});
-  if(parents.error) throw parents.error;
-  tutorDocs = tutors.data || [];
-  parentDocs = parents.data || [];
+  tutorDocs = [];
+  parentDocs = [];
   renderParentList();
   renderTutorSelfList();
   renderTutorBrowse();
