@@ -37,6 +37,8 @@ header p{margin:0; color:var(--sub); font-size:14px;}
 .tab{
   flex:1; padding:10px; text-align:center; border-radius:999px; border:1px solid var(--line);
   cursor:pointer; font-size:14px; color:var(--sub); background:var(--card);
+  appearance:none; -webkit-appearance:none; font-family:inherit;
+  position:relative; z-index:10; pointer-events:auto; touch-action:manipulation;
 }
 .tab.active{background:var(--accent); color:var(--accent-ink); border-color:var(--accent);}
 main{max-width:520px; margin:0 auto; padding:18px 20px 60px;}
@@ -92,10 +94,10 @@ button.primary{
   <p>新加坡家长找家教 · 简易撮合演示版</p>
 </header>
 
-<div class="tabs">
-  <div class="tab active" data-tab="parent">我是家长</div>
-  <div class="tab" data-tab="tutor">I'm a Tutor</div>
-  <div class="tab" data-tab="browse">浏览老师</div>
+<div class="tabs" role="tablist">
+  <button type="button" class="tab active" data-tab="parent" role="tab" aria-selected="true">我是家长</button>
+  <button type="button" class="tab" data-tab="tutor" role="tab" aria-selected="false">I'm a Tutor</button>
+  <button type="button" class="tab" data-tab="browse" role="tab" aria-selected="false">浏览老师</button>
 </div>
 
 <main>
@@ -635,13 +637,22 @@ function updateParentRegion(){
   }
 }
 
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(x=>{
+    const active = x.dataset.tab === name;
+    x.classList.toggle('active', active);
+    x.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+  const panel = document.getElementById('panel-'+name);
+  if(panel) panel.classList.add('active');
+  if(name === 'browse') renderTutorBrowse();
+}
 document.querySelectorAll('.tab').forEach(tab=>{
-  tab.addEventListener('click', ()=>{
-    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById('panel-'+tab.dataset.tab).classList.add('active');
-    if(tab.dataset.tab === 'browse') renderTutorBrowse();
+  tab.addEventListener('click', e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    switchTab(tab.dataset.tab);
   });
 });
 
@@ -795,7 +806,7 @@ function escapeHtml(s){
   return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-initDb();
+try { initDb(); } catch (err) { console.warn('App initialization failed:', err); }
 </script>
 
 </body>
