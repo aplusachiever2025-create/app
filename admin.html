@@ -134,7 +134,7 @@ async function boot(){
   await loadFollowups();loadWarRoom();
 }
 async function loadCases(){
-  const {data,error}=await sb.from('match_cases').select('*,parent_requests(id,level,subject,region,budget,freq,duration,timeslot,goal,contact_name,contact_phone,contact_email,contact_wechat),tutor_profiles(id,name,rate,cred,whatsapp,contact_email,contact_phone,tutor_status)').order('created_at',{ascending:false});
+  const {data,error}=await sb.from('match_cases').select('*,parent_requests(id,level,subject,region,budget,freq,duration,timeslot,goal,contact_name,contact_phone,contact_whatsapp,contact_email,contact_wechat),tutor_profiles(id,name,rate,cred,whatsapp,contact_email,contact_phone,tutor_status,review_status,resume_path,resume_name)').order('created_at',{ascending:false});
   if(error){document.getElementById('cases').innerHTML='<div class="meta">读取失败：'+esc(error.message)+'</div>';return}
   cases=data||[];renderStats();renderCases();
 }
@@ -279,13 +279,13 @@ function renderParentDirectory(rows){
     return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · '+esc(p.contact_email||'-')+' · 微信 '+esc(p.contact_wechat||'-')+' · '+esc(p.region||'-')+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'开放中':p.request_status==='closed'?'已关闭':'已移除')+'</span></div><div class="meta">预算：'+esc(p.budget||'-')+' · 创建：'+esc(p.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeParent('+p.id+')">移除需求</button>':'<button onclick="restoreParent('+p.id+')">重新开放</button>')+'</div></div>';
   }).join('');
 }
-async async function openResume(path){
+async function openResume(path){
   if(!path){alert('没有上传履历');return}
   const {data,error}=await sb.storage.from('tutor-resumes').createSignedUrl(path,600);
   if(error){alert('无法打开履历：'+error.message);return}
   window.open(data.signedUrl,'_blank','noopener');
 }
-function setTutorReview(id,status){
+async function setTutorReview(id,status){
   const {error}=await sb.from('tutor_profiles').update({review_status:status,tutor_status:status==='verified'?'active':'pending'}).eq('id',id);
   if(error){alert('审核更新失败：'+error.message);return}
   await loadDirectory();
