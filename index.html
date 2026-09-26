@@ -250,8 +250,8 @@ button.primary{
       <button class="primary" onclick="submitParent()">发布找家教需求</button>
     </div>
 
-    <div class="section-title">最新家长需求（共享数据库）</div>
-    <div id="parent-list"><div class="empty">还没有发布需求</div></div>
+    <div class="section-title">家长需求</div>
+    <div id="parent-list"><div class="empty">家长需求提交后会进入匹配流程，不公开显示个人地址和联系方式。</div></div>
   </div>
 
   <div class="panel" id="panel-tutor">
@@ -624,13 +624,10 @@ async function initDb(){
 
 async function refreshSupabaseData(){
   if(!supabaseClient) return;
-  const [parents, tutors] = await Promise.all([
-    supabaseClient.from('parent_requests').select('*').order('created_at',{ascending:false}),
-    supabaseClient.from('tutor_profiles').select('*').order('created_at',{ascending:false})
-  ]);
-  if(parents.error) throw parents.error;
+  const tutors = await supabaseClient.from('tutor_profiles').select('*').order('created_at',{ascending:false});
   if(tutors.error) throw tutors.error;
-  parentDocs = parents.data || [];
+  // Parent requests contain private contact/location information, so they are not publicly queried.
+  parentDocs = [];
   tutorDocs = tutors.data || [];
   renderParentList();
   renderTutorSelfList();
