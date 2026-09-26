@@ -1,7 +1,7 @@
 // Supabase public browser configuration.
-// The anon key is intended for frontend use when Row Level Security is enabled.
+// This key is intended for frontend use.
 // NEVER put a Supabase service_role key in this file.
 window.SUPABASE_CONFIG = {
-  url: 'YOUR_SUPABASE_PROJECT_URL',
-  anonKey: 'YOUR_SUPABASE_ANON_KEY'
+  url: 'https://mgywpctnaaroiwpzgxgq.supabase.co',
+  anonKey: 'sb_publishable_to_CylU3a3D1JCLgRv-P8w_SKM7sm42'
 };
