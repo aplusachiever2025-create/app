@@ -363,6 +363,10 @@ button.primary{
         <label class="pill"><input type="checkbox" value="东北 North-East" style="width:auto;"> North-East</label>
       </div>
 
+      <label>WhatsApp 联系号码</label>
+      <input id="t-whatsapp" placeholder="例如 91234567 或 +65 91234567" inputmode="tel">
+      <div class="meta" style="margin-top:5px;">用于家长与老师撮合联系，请填写可接收 WhatsApp 的号码。</div>
+
       <label>About You</label>
       <textarea id="t-bio" placeholder="Your teaching experience, the type of students you work best with, etc."></textarea>
 
@@ -757,17 +761,19 @@ async function submitTutor(){
     exp: document.getElementById('t-exp').value,
     trial: document.getElementById('t-trial').value,
     regions, timeslots,
-    bio: document.getElementById('t-bio').value.trim()
+    bio: document.getElementById('t-bio').value.trim(),
+    whatsapp: document.getElementById('t-whatsapp').value.trim()
   };
   try{
     const { error } = await supabaseClient.from('tutor_profiles').insert({
       name: tutor.name, scopes: tutor.scopes, level: tutor.level, cred: tutor.cred,
       rate: tutor.rate, gender: tutor.gender, mode: tutor.mode, lang: tutor.lang,
       exp: tutor.exp, trial: tutor.trial, regions: tutor.regions, timeslots: tutor.timeslots,
-      bio: tutor.bio
+      bio: tutor.bio, whatsapp: tutor.whatsapp
     });
     if(error) throw error;
     document.getElementById('t-name').value = '';
+    document.getElementById('t-whatsapp').value = '';
     document.getElementById('t-bio').value = '';
     document.getElementById('t-scopes').innerHTML = '';
     addTutorScope();
@@ -777,6 +783,23 @@ async function submitTutor(){
   }catch(e){ toast('Submission failed, please try again'); }
 }
 
+function normalizeWhatsApp(value){
+  const raw = String(value||'').trim();
+  if(!raw) return '';
+  let digits = raw.replace(/\D/g,'');
+  if(digits.startsWith('65') && digits.length >= 10) return digits;
+  if(digits.length === 8) return '65' + digits;
+  return digits;
+}
+
+function whatsappUrl(value, req){
+  const number = normalizeWhatsApp(value);
+  if(!number) return '';
+  const subject = req && req.subject ? req.subject : '家教需求';
+  const level = req && req.level ? req.level : '';
+  const message = '你好，我在 SG Tutor Match 找家教。想咨询 ' + level + ' ' + subject + ' 的补习安排，请问你目前还有空档吗？';
+  return 'https://wa.me/' + number + '?text=' + encodeURIComponent(message);
+}
 function tutorScopeMatches(scope, levelCode, subject){
   if(!scope || !levelCode) return false;
   const levels = STAGE_LEVELS[scope.stage] || [];
@@ -870,7 +893,7 @@ function renderParentMatches(req){
       '<div class="meta">' + escapeHtml(t.rate||'-') + '/小时 · ' + escapeHtml(t.cred||'') + ' · ' + escapeHtml(t.mode||'') + '</div>' +
       '<div class="meta">服务区域：' + ((t.regions||[]).map(escapeHtml).join(' / ') || '未填写') + '</div>' +
       '<div class="match-reasons">匹配原因：' + reasons.map(escapeHtml).join(' · ') + '</div>' +
-      '<div class="match-actions"><button type="button" onclick="window.__switchTab(\'browse\')">查看老师</button><button type="button" class="primary-mini" onclick="toast(\'下一步可接入 WhatsApp / 联系老师功能\')">联系老师</button></div>' +
+      '<div class="match-actions"><button type="button" onclick="window.__switchTab(\'browse\')">查看老师</button>' + (t.whatsapp ? '<a class="primary-mini" style="display:flex;align-items:center;justify-content:center;text-decoration:none;" target="_blank" rel="noopener" href="' + whatsappUrl(t.whatsapp, req) + '">WhatsApp 联系</a>' : '<button type="button" class="primary-mini" onclick="toast(\'这位老师暂未填写 WhatsApp\')">WhatsApp 联系</button>') + '</div>' +
       '</div>';
     return card;
   }).join('');
