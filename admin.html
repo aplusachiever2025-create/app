@@ -385,6 +385,12 @@ async function runSmartMatch(silent=false){
   }
 }
 function filterCases(status){caseFilter=status;renderCases();}
+function whatsappUrl(target,number){
+  const d=normalizeWhatsApp(number);
+  if(!d)return '';
+  const message=target==='parent'?'您好，这里是 SG Tutor Match，想跟进您的家教需求。':'您好，这里是 SG Tutor Match，想跟进您的家教资料与 SmartMatch。';
+  return 'https://web.whatsapp.com/send?phone='+d+'&text='+encodeURIComponent(message);
+}
 function whatsappLinkHtml(target,number,label){
   const d=normalizeWhatsApp(number);
   if(!d)return '<button type="button" disabled>💬 '+esc(label)+'（无号码）</button>';
