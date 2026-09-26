@@ -1,1 +1,684 @@
-The requested file reference is not currently visible. Use files.search or files.list to rediscover the file, then retry with a returned ref_id or file_id.
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SG Tutor Match</title>
+<style>
+:root{
+  --bg:#faf9f7; --card:#fff; --ink:#1c1b1a; --sub:#6b6863;
+  --accent:#c9622f; --accent-ink:#fff; --line:#e7e3dd; --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#17140f; --card:#221e18; --ink:#f3efe8; --sub:#a89f92; --line:#332e26;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#17140f; --card:#221e18; --ink:#f3efe8; --sub:#a89f92; --line:#332e26;
+}
+*{box-sizing:border-box;}
+html{scroll-padding-top:env(safe-area-inset-top,0px);}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:-apple-system,"PingFang SC","Helvetica Neue",Arial,sans-serif;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  min-height:100%;
+}
+header{
+  padding:28px 20px 18px; text-align:center;
+  border-bottom:1px solid var(--line);
+}
+header h1{margin:0 0 6px; font-size:22px; letter-spacing:-0.3px;}
+header p{margin:0; color:var(--sub); font-size:14px;}
+.tabs{
+  display:flex; gap:8px; max-width:520px; margin:18px auto 0; padding:0 20px;
+}
+.tab{
+  flex:1; padding:10px; text-align:center; border-radius:999px; border:1px solid var(--line);
+  cursor:pointer; font-size:14px; color:var(--sub); background:var(--card);
+}
+.tab.active{background:var(--accent); color:var(--accent-ink); border-color:var(--accent);}
+main{max-width:520px; margin:0 auto; padding:18px 20px 60px;}
+.panel{display:none;}
+.panel.active{display:block;}
+.card{
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+  padding:18px; margin-bottom:14px;
+}
+label{display:block; font-size:13px; color:var(--sub); margin:12px 0 5px;}
+label:first-child{margin-top:0;}
+input,select,textarea{
+  width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;
+  background:var(--bg); color:var(--ink); font-size:15px; font-family:inherit;
+}
+textarea{resize:vertical; min-height:60px;}
+button.primary{
+  width:100%; margin-top:16px; padding:12px; border:none; border-radius:10px;
+  background:var(--accent); color:var(--accent-ink); font-size:15px; font-weight:600; cursor:pointer;
+}
+.row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.list-item{
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+  padding:14px; margin-bottom:10px;
+}
+.list-item .top{display:flex; justify-content:space-between; align-items:baseline; gap:8px;}
+.list-item .name{font-weight:600; font-size:15px;}
+.list-item .tag{font-size:12px; color:var(--accent); background:rgba(201,98,47,0.12); padding:2px 8px; border-radius:999px;}
+.list-item .meta{color:var(--sub); font-size:13px; margin-top:4px;}
+.empty{color:var(--sub); font-size:14px; text-align:center; padding:30px 0;}
+.section-title{font-size:13px; color:var(--sub); margin:20px 0 8px; text-transform:uppercase; letter-spacing:0.5px;}
+.pill-row{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;}
+.pill{font-size:12px; padding:4px 10px; border:1px solid var(--line); border-radius:999px; color:var(--sub);}
+.toast{
+  position:fixed; bottom:calc(20px + env(safe-area-inset-bottom,0px)); left:50%; transform:translateX(-50%);
+  background:var(--ink); color:var(--bg); padding:10px 18px; border-radius:999px; font-size:13px;
+  opacity:0; pointer-events:none; transition:opacity .25s;
+}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>SG Tutor Match 🇸🇬</h1>
+  <p>新加坡家长找家教 · 简易撮合演示版</p>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="parent">我是家长</div>
+  <div class="tab" data-tab="tutor">I'm a Tutor</div>
+  <div class="tab" data-tab="browse">浏览老师</div>
+</div>
+
+<main>
+
+  <div class="panel active" id="panel-parent">
+    <div class="card">
+      <label>孩子年级</label>
+      <select id="p-level" onchange="updateParentSubjects()">
+        <option value="P1">小学一年级 P1</option>
+        <option value="P2">小学二年级 P2</option>
+        <option value="P3">小学三年级 P3</option>
+        <option value="P4">小学四年级 P4</option>
+        <option value="P5">小学五年级 P5</option>
+        <option value="P6">小学六年级 P6</option>
+        <option value="S1">中一 Sec 1</option>
+        <option value="S2">中二 Sec 2</option>
+        <option value="S3">中三 Sec 3</option>
+        <option value="S4">中四 Sec 4</option>
+        <option value="S5">中五 Sec 5（N水平）</option>
+        <option value="JC1">初级学院一年级 JC1</option>
+        <option value="JC2">初级学院二年级 JC2 / A-Level</option>
+        <option value="IB">IB文凭课程 IB DP</option>
+        <option value="IGCSE">IGCSE</option>
+      </select>
+
+      <div class="row2">
+        <div>
+          <label>科目（按年级自动匹配MOE大纲）</label>
+          <select id="p-subject"></select>
+        </div>
+        <div>
+          <label>语言偏好</label>
+          <select id="p-lang">
+            <option>英文</option>
+            <option>华文</option>
+            <option>不限</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div>
+          <label>所在大区</label>
+          <select id="p-region-select">
+            <option value="中央 Central">中央 Central</option>
+            <option value="东部 East">东部 East</option>
+            <option value="西部 West">西部 West</option>
+            <option value="北部 North">北部 North</option>
+            <option value="东北 North-East">东北 North-East</option>
+          </select>
+        </div>
+        <div>
+          <label>预算（$/小时）</label>
+          <select id="p-budget">
+            <option>$20-30</option>
+            <option>$30-40</option>
+            <option>$40-60</option>
+            <option>$60-80</option>
+            <option>$80以上</option>
+          </select>
+        </div>
+      </div>
+
+      <label>邮编（可选，自动核对大区）</label>
+      <input id="p-postcode" placeholder="6位数字，如 570123" maxlength="6" inputmode="numeric" oninput="updateParentRegion()">
+      <div id="p-region-hint" class="meta" style="margin:4px 0 0;"></div>
+
+      <div class="row2">
+        <div>
+          <label>上课频率</label>
+          <select id="p-freq">
+            <option>每周1次</option>
+            <option>每周2次</option>
+            <option>每周3次以上</option>
+            <option>不定期</option>
+          </select>
+        </div>
+        <div>
+          <label>单次时长</label>
+          <select id="p-duration">
+            <option>1小时</option>
+            <option>1.5小时</option>
+            <option>2小时</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div>
+          <label>方便时段</label>
+          <select id="p-timeslot">
+            <option>平日放学后</option>
+            <option>平日晚上</option>
+            <option>周末白天</option>
+            <option>周末晚上</option>
+            <option>灵活</option>
+          </select>
+        </div>
+        <div>
+          <label>学习目标</label>
+          <select id="p-goal">
+            <option>应试冲刺</option>
+            <option>打基础</option>
+            <option>预习超前</option>
+            <option>兴趣提升</option>
+          </select>
+        </div>
+      </div>
+
+      <label>详细地址（可选，方便老师定位）</label>
+      <input id="p-address" placeholder="例如 Block 123 Ang Mo Kio Ave 3">
+
+      <div class="row2">
+        <div>
+          <label>老师性别偏好</label>
+          <select id="p-gender">
+            <option>不限</option>
+            <option>女老师</option>
+            <option>男老师</option>
+          </select>
+        </div>
+        <div>
+          <label>授课方式</label>
+          <select id="p-mode">
+            <option>上门（老师到家）</option>
+            <option>线上 Online</option>
+            <option>不限</option>
+          </select>
+        </div>
+      </div>
+
+      <label>老师类型偏好</label>
+      <select id="p-tutortype">
+        <option>不限</option>
+        <option>MOE在职/退休教师（价格最高）</option>
+        <option>全职家教</option>
+        <option>在校大学生兼职（价格最亲民）</option>
+      </select>
+
+      <label>补充说明</label>
+      <textarea id="p-notes" placeholder="孩子情况、期望上课时间、是否要试课等"></textarea>
+
+      <button class="primary" onclick="submitParent()">发布找家教需求</button>
+    </div>
+
+    <div class="section-title">最新家长需求（共享数据库）</div>
+    <div id="parent-list"><div class="empty">还没有发布需求</div></div>
+  </div>
+
+  <div class="panel" id="panel-tutor">
+    <div class="card">
+      <label>Name / Preferred Title</label>
+      <input id="t-name" placeholder="e.g. Ms Tan">
+
+      <label>Grade(s) You Teach</label>
+      <select id="t-level" onchange="updateTutorSubjects()">
+        <option value="P1">Primary 1 (P1)</option>
+        <option value="P2">Primary 2 (P2)</option>
+        <option value="P3">Primary 3 (P3)</option>
+        <option value="P4">Primary 4 (P4)</option>
+        <option value="P5">Primary 5 (P5)</option>
+        <option value="P6">Primary 6 (P6 / PSLE)</option>
+        <option value="S1">Secondary 1</option>
+        <option value="S2">Secondary 2</option>
+        <option value="S3">Secondary 3</option>
+        <option value="S4">Secondary 4</option>
+        <option value="S5">Secondary 5 (N-Level)</option>
+        <option value="JC1">JC1</option>
+        <option value="JC2">JC2 / A-Level</option>
+        <option value="IB">IB Diploma Programme (IB DP)</option>
+        <option value="IGCSE">IGCSE</option>
+      </select>
+
+      <label>Subjects You Teach (select all that apply — auto-matched to the MOE syllabus by grade)</label>
+      <div class="pill-row" id="t-subjects"></div>
+
+      <div class="row2">
+        <div>
+          <label>Qualification / Type</label>
+          <select id="t-cred">
+            <option>Current / Retired MOE Teacher</option>
+            <option>Undergraduate</option>
+            <option>Full-time Tutor</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label>Rate ($/hour)</label>
+          <select id="t-rate">
+            <option>$20-30</option>
+            <option>$30-40</option>
+            <option>$40-60</option>
+            <option>$60-80</option>
+            <option>$80+</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div>
+          <label>Gender</label>
+          <select id="t-gender">
+            <option value="女">Female</option>
+            <option value="男">Male</option>
+          </select>
+        </div>
+        <div>
+          <label>Teaching Mode</label>
+          <select id="t-mode">
+            <option value="上门（可到学生家）">In-person (tutor visits student's home)</option>
+            <option value="仅线上">Online only</option>
+            <option value="上门+线上均可">Both in-person and online</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div>
+          <label>Language Proficiency</label>
+          <select id="t-lang">
+            <option>English</option>
+            <option>Chinese / Higher Chinese</option>
+            <option>Malay</option>
+            <option>Tamil</option>
+          </select>
+        </div>
+        <div>
+          <label>Teaching Experience</label>
+          <select id="t-exp">
+            <option>Less than 1 year</option>
+            <option>1-3 years</option>
+            <option>3-5 years</option>
+            <option>5-10 years</option>
+            <option>10+ years</option>
+          </select>
+        </div>
+      </div>
+
+      <label>Offer a Free Trial Lesson?</label>
+      <select id="t-trial">
+        <option>Yes</option>
+        <option>No</option>
+      </select>
+
+      <label>Available Time Slots (select all that apply)</label>
+      <div class="pill-row" id="t-timeslots">
+        <label class="pill"><input type="checkbox" value="Weekday afternoons" style="width:auto;"> Weekday afternoons</label>
+        <label class="pill"><input type="checkbox" value="Weekday evenings" style="width:auto;"> Weekday evenings</label>
+        <label class="pill"><input type="checkbox" value="Weekend daytime" style="width:auto;"> Weekend daytime</label>
+        <label class="pill"><input type="checkbox" value="Weekend evenings" style="width:auto;"> Weekend evenings</label>
+      </div>
+
+      <label>Service Areas (select all that apply)</label>
+      <div class="pill-row" id="t-regions">
+        <label class="pill"><input type="checkbox" value="中央 Central" style="width:auto;"> Central</label>
+        <label class="pill"><input type="checkbox" value="东部 East" style="width:auto;"> East</label>
+        <label class="pill"><input type="checkbox" value="西部 West" style="width:auto;"> West</label>
+        <label class="pill"><input type="checkbox" value="北部 North" style="width:auto;"> North</label>
+        <label class="pill"><input type="checkbox" value="东北 North-East" style="width:auto;"> North-East</label>
+      </div>
+
+      <label>About You</label>
+      <textarea id="t-bio" placeholder="Your teaching experience, the type of students you work best with, etc."></textarea>
+
+      <button class="primary" onclick="submitTutor()">Submit Tutor Profile</button>
+    </div>
+
+    <div class="section-title">Registered Tutors (Shared Directory)</div>
+    <div id="tutor-self-list"><div class="empty">No tutors registered yet</div></div>
+  </div>
+
+  <div class="panel" id="panel-browse">
+    <div class="card">
+      <div class="row2">
+        <div>
+          <label>性别筛选</label>
+          <select id="f-gender">
+            <option value="">不限</option>
+            <option>女</option>
+            <option>男</option>
+          </select>
+        </div>
+        <div>
+          <label>授课方式筛选</label>
+          <select id="f-mode">
+            <option value="">不限</option>
+            <option>上门（可到学生家）</option>
+            <option>仅线上</option>
+            <option>上门+线上均可</option>
+          </select>
+        </div>
+      </div>
+      <label>科目筛选</label>
+      <select id="f-subject">
+        <option value="">不限</option>
+      </select>
+      <label>服务区域筛选</label>
+      <select id="f-region">
+        <option value="">不限</option>
+        <option>中央 Central</option>
+        <option>东部 East</option>
+        <option>西部 West</option>
+        <option>北部 North</option>
+        <option>东北 North-East</option>
+      </select>
+    </div>
+    <div class="section-title">符合条件的老师</div>
+    <div id="tutor-browse-list"><div class="empty">还没有老师入驻，去"我是老师"页提交一个试试</div></div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const K_TUTORS = "tutors";
+const K_REQUESTS = "parents";
+
+let db = null;
+let parentDocs = [];
+let tutorDocs = [];
+
+// 新加坡MOE课程大纲：各年级对应科目（简化整理，供家教平台参考）
+const MOE_SUBJECTS = {
+  'P1': ['英文 English','数学 Math','华文 Chinese','马来文 Malay','淡米尔文 Tamil'],
+  'P2': ['英文 English','数学 Math','华文 Chinese','马来文 Malay','淡米尔文 Tamil'],
+  'P3': ['英文 English','数学 Math','科学 Science','华文 Chinese','高级华文 Higher Chinese','马来文 Malay','高级马来文 Higher Malay','淡米尔文 Tamil','高级淡米尔文 Higher Tamil'],
+  'P4': ['英文 English','数学 Math','科学 Science','华文 Chinese','高级华文 Higher Chinese','马来文 Malay','高级马来文 Higher Malay','淡米尔文 Tamil','高级淡米尔文 Higher Tamil'],
+  'P5': ['英文 English','数学 Math','科学 Science','华文 Chinese','高级华文 Higher Chinese','马来文 Malay','高级马来文 Higher Malay','淡米尔文 Tamil','高级淡米尔文 Higher Tamil'],
+  'P6': ['英文 English','数学 Math','科学 Science','华文 Chinese','高级华文 Higher Chinese','马来文 Malay','高级马来文 Higher Malay','淡米尔文 Tamil','高级淡米尔文 Higher Tamil'],
+  'S1': ['英文 English','数学 Math','科学 Science','华文 Chinese','高级华文 Higher Chinese','马来文 Malay','淡米尔文 Tamil','地理 Geography','历史 History','文学 Literature','美术 Art','设计与科技 D&T','食品与消费者教育 FCE','计算机 Computing'],
+  'S2': ['英文 English','数学 Math','科学 Science','华文 Chinese','高级华文 Higher Chinese','马来文 Malay','淡米尔文 Tamil','地理 Geography','历史 History','文学 Literature','美术 Art','设计与科技 D&T','食品与消费者教育 FCE','计算机 Computing'],
+  'S3': ['英文 English','数学 E Math','附加数学 A-Math','物理 Physics','化学 Chemistry','生物 Biology','综合科学 Combined Science','华文 Chinese','高级华文 Higher Chinese','马来文 Malay','淡米尔文 Tamil','地理 Geography','历史 History','文学 Literature','综合人文 Combined Humanities','会计原理 POA','经济学 Economics','美术 Art','计算机 Computing','设计与科技 D&T','食品与消费者教育 FCE'],
+  'S4': ['英文 English','数学 E Math','附加数学 A-Math','物理 Physics','化学 Chemistry','生物 Biology','综合科学 Combined Science','华文 Chinese','高级华文 Higher Chinese','马来文 Malay','淡米尔文 Tamil','地理 Geography','历史 History','文学 Literature','综合人文 Combined Humanities','会计原理 POA','经济学 Economics','美术 Art','计算机 Computing','设计与科技 D&T','食品与消费者教育 FCE'],
+  'S5': ['英文 English','数学 E Math','物理 Physics','化学 Chemistry','生物 Biology','综合科学 Combined Science','华文 Chinese','马来文 Malay','淡米尔文 Tamil','地理 Geography','历史 History','会计原理 POA','美术 Art','计算机 Computing','设计与科技 D&T','食品与消费者教育 FCE'],
+  'JC1': ['通论文 General Paper','数学 H1/H2 Math','物理 H2 Physics','化学 H2 Chemistry','生物 H2 Biology','经济学 Economics','历史 History','地理 Geography','文学 Literature','华文 Chinese','计算机 Computing','美术 Art'],
+  'JC2': ['通论文 General Paper','数学 H1/H2 Math','物理 H2 Physics','化学 H2 Chemistry','生物 H2 Biology','经济学 Economics','历史 History','地理 Geography','文学 Literature','华文 Chinese','计算机 Computing','美术 Art'],
+  'IB': ['英文 English (Lang A)','华文 Chinese (Lang B)','数学 Mathematics','物理 Physics','化学 Chemistry','生物 Biology','经济学 Economics','历史 History','地理 Geography','视觉艺术 Visual Arts'],
+  'IGCSE': ['英文 English','数学 Math','附加数学 Additional Math','物理 Physics','化学 Chemistry','生物 Biology','综合科学 Combined Science','华文 Chinese','经济学 Economics','商业研究 Business Studies','地理 Geography','历史 History','计算机科学 Computer Science','会计 Accounting']
+};
+
+// Helper: given a bilingual "Chinese English" string, return just the English part (for the all-English tutor UI)
+function enPart(s){
+  const i = s.indexOf(' ');
+  return i === -1 ? s : s.slice(i + 1);
+}
+const GENDER_EN = { '女':'Female', '男':'Male' };
+const MODE_EN = {
+  '上门（可到学生家）': "In-person (tutor visits student's home)",
+  '仅线上': 'Online only',
+  '上门+线上均可': 'Both in-person and online'
+};
+
+function updateParentSubjects(){
+  const level = document.getElementById('p-level').value;
+  const subjects = MOE_SUBJECTS[level] || [];
+  const sel = document.getElementById('p-subject');
+  sel.innerHTML = subjects.map(s => `<option>${s}</option>`).join('');
+}
+
+function updateTutorSubjects(){
+  const level = document.getElementById('t-level').value;
+  const subjects = MOE_SUBJECTS[level] || [];
+  const container = document.getElementById('t-subjects');
+  const prevChecked = Array.from(container.querySelectorAll('input:checked')).map(c => c.value);
+  container.innerHTML = subjects.map(s => {
+    const label = enPart(s);
+    const checked = prevChecked.includes(s) ? ' checked' : '';
+    return `<label class="pill"><input type="checkbox" value="${s}" style="width:auto;"${checked}> ${label}</label>`;
+  }).join('');
+}
+
+function initFilterSubjects(){
+  const all = new Set();
+  Object.values(MOE_SUBJECTS).forEach(list => list.forEach(s => all.add(s)));
+  const sel = document.getElementById('f-subject');
+  sel.innerHTML = '<option value="">不限</option>' + Array.from(all).map(s => `<option>${s}</option>`).join('');
+}
+
+updateParentSubjects();
+updateTutorSubjects();
+initFilterSubjects();
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+async function initDb(){
+  db = await claude.use('db');
+  if(!db){
+    toast('数据库暂时无法连接，请刷新重试');
+    document.getElementById('parent-list').innerHTML = '<div class="empty">数据库未连接</div>';
+    document.getElementById('tutor-self-list').innerHTML = '<div class="empty">Not connected to the database</div>';
+    return;
+  }
+  db.collection(K_REQUESTS).orderBy('id','desc').onSnapshot(snap=>{
+    parentDocs = snap.docs.map(d => ({ docId:d.id, ...d.data() }));
+    renderParentList();
+  }, err => { console.error(err); toast('家长需求同步失败'); });
+
+  db.collection(K_TUTORS).orderBy('id','desc').onSnapshot(snap=>{
+    tutorDocs = snap.docs.map(d => ({ docId:d.id, ...d.data() }));
+    renderTutorSelfList();
+    renderTutorBrowse();
+  }, err => { console.error(err); toast('Failed to sync tutor profiles'); });
+}
+
+// 新加坡邮政分区 -> 邮政区（District）-> 大区，简化版，供匹配参考
+const SECTOR_RANGES = [
+  [1,6,1],[7,8,2],[14,16,3],[9,10,4],[11,13,5],[17,17,6],[18,19,7],[20,21,8],
+  [22,23,9],[24,27,10],[28,30,11],[31,33,12],[34,37,13],[38,41,14],[42,45,15],
+  [46,48,16],[49,50,17],[81,81,17],[51,52,18],[53,55,19],[82,82,19],[56,57,20],
+  [58,59,21],[60,64,22],[65,68,23],[69,71,24],[72,73,25],[77,78,26],[75,76,27],[79,80,28]
+];
+const DISTRICT_REGION = {1:'中央 Central',2:'中央 Central',3:'中央 Central',4:'中央 Central',
+  5:'西部 West',6:'中央 Central',7:'中央 Central',8:'中央 Central',9:'中央 Central',
+  10:'中央 Central',11:'中央 Central',12:'中央 Central',13:'中央 Central',14:'东部 East',
+  15:'东部 East',16:'东部 East',17:'东部 East',18:'东部 East',19:'东北 North-East',
+  20:'中央 Central',21:'中央 Central',22:'西部 West',23:'西部 West',24:'西部 West',
+  25:'北部 North',26:'北部 North',27:'北部 North',28:'东北 North-East'};
+
+function postcodeToRegion(pc){
+  pc = (pc||'').replace(/\D/g,'');
+  if(pc.length !== 6) return null;
+  const sector = parseInt(pc.slice(0,2),10);
+  const hit = SECTOR_RANGES.find(r => sector>=r[0] && sector<=r[1]);
+  if(!hit) return null;
+  return DISTRICT_REGION[hit[2]] || null;
+}
+
+function updateParentRegion(){
+  const pc = document.getElementById('p-postcode').value;
+  const region = postcodeToRegion(pc);
+  const hint = document.getElementById('p-region-hint');
+  if(pc.replace(/\D/g,'').length < 6){ hint.textContent = ''; return; }
+  if(region){
+    document.getElementById('p-region-select').value = region;
+    hint.textContent = '已根据邮编自动选择大区：' + region;
+  } else {
+    hint.textContent = '邮编格式看起来不对，请手动选择大区';
+  }
+}
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-'+tab.dataset.tab).classList.add('active');
+    if(tab.dataset.tab === 'browse') renderTutorBrowse();
+  });
+});
+
+async function submitParent(){
+  if(!db){ toast('数据库未连接，请稍候重试'); return; }
+  const subject = document.getElementById('p-subject').value;
+  const postcode = document.getElementById('p-postcode').value.replace(/\D/g,'');
+  const region = document.getElementById('p-region-select').value;
+  const req = {
+    id: Date.now(),
+    level: document.getElementById('p-level').selectedOptions[0].textContent,
+    subject, lang: document.getElementById('p-lang').value,
+    postcode, region,
+    address: document.getElementById('p-address').value.trim(),
+    budget: document.getElementById('p-budget').value,
+    freq: document.getElementById('p-freq').value,
+    duration: document.getElementById('p-duration').value,
+    timeslot: document.getElementById('p-timeslot').value,
+    goal: document.getElementById('p-goal').value,
+    gender: document.getElementById('p-gender').value,
+    mode: document.getElementById('p-mode').value,
+    tutortype: document.getElementById('p-tutortype').value
+  };
+  try{
+    await db.collection(K_REQUESTS).add(req);
+    document.getElementById('p-postcode').value = '';
+    document.getElementById('p-address').value = '';
+    document.getElementById('p-region-hint').textContent = '';
+    toast('需求已发布');
+  }catch(e){ toast('发布失败，请重试'); }
+}
+
+async function submitTutor(){
+  if(!db){ toast('Database not connected, please try again shortly'); return; }
+  const name = document.getElementById('t-name').value.trim();
+  const subjects = Array.from(document.querySelectorAll('#t-subjects input:checked')).map(c=>c.value);
+  if(!name || !subjects.length){ toast('Please enter your name and select at least one subject'); return; }
+  const regions = Array.from(document.querySelectorAll('#t-regions input:checked')).map(c=>c.value);
+  const timeslots = Array.from(document.querySelectorAll('#t-timeslots input:checked')).map(c=>c.value);
+  const tutor = {
+    id: Date.now(),
+    name, subjects, level: document.getElementById('t-level').selectedOptions[0].textContent,
+    cred: document.getElementById('t-cred').value,
+    rate: document.getElementById('t-rate').value,
+    gender: document.getElementById('t-gender').value,
+    mode: document.getElementById('t-mode').value,
+    lang: document.getElementById('t-lang').value,
+    exp: document.getElementById('t-exp').value,
+    trial: document.getElementById('t-trial').value,
+    regions, timeslots,
+    bio: document.getElementById('t-bio').value.trim()
+  };
+  try{
+    await db.collection(K_TUTORS).add(tutor);
+    document.getElementById('t-name').value = '';
+    document.getElementById('t-bio').value = '';
+    document.querySelectorAll('#t-subjects input, #t-regions input, #t-timeslots input').forEach(c=>c.checked=false);
+    toast('Profile submitted');
+  }catch(e){ toast('Submission failed, please try again'); }
+}
+
+function renderParentList(){
+  const list = parentDocs;
+  const el = document.getElementById('parent-list');
+  if(!list.length){ el.innerHTML = '<div class="empty">还没有发布需求</div>'; return; }
+  el.innerHTML = list.map(r => `
+    <div class="list-item">
+      <div class="top"><span class="name">${escapeHtml(r.subject)} · ${escapeHtml(r.level)}</span><span class="tag">${escapeHtml(r.region)}</span></div>
+      <div class="meta">${r.postcode ? '邮编: '+escapeHtml(r.postcode)+' · ' : ''}${r.address ? escapeHtml(r.address) : ''}</div>
+      <div class="meta">语言: ${escapeHtml(r.lang)} · 预算: ${escapeHtml(r.budget)}/小时 · ${escapeHtml(r.mode||'')}</div>
+      <div class="meta">${escapeHtml(r.freq)} · 每次${escapeHtml(r.duration)} · ${escapeHtml(r.timeslot)} · ${escapeHtml(r.goal)}</div>
+      <div class="meta">老师偏好: ${escapeHtml(r.gender||'不限')} · ${escapeHtml(r.tutortype||'不限')}</div>
+    </div>
+  `).join('');
+}
+
+function renderTutorSelfList(){
+  const list = tutorDocs;
+  const el = document.getElementById('tutor-self-list');
+  if(!list.length){ el.innerHTML = '<div class="empty">No tutors registered yet</div>'; return; }
+  el.innerHTML = list.map(t => tutorCard(t, 'en')).join('');
+}
+
+function renderTutorBrowse(){
+  let list = tutorDocs;
+  const g = document.getElementById('f-gender').value;
+  const m = document.getElementById('f-mode').value;
+  const s = document.getElementById('f-subject').value;
+  const r = document.getElementById('f-region').value;
+  if(g) list = list.filter(t => t.gender === g);
+  if(m) list = list.filter(t => t.mode === m);
+  if(s) list = list.filter(t => (t.subjects||[]).includes(s));
+  if(r) list = list.filter(t => (t.regions||[]).includes(r));
+  const el = document.getElementById('tutor-browse-list');
+  if(!list.length){ el.innerHTML = '<div class="empty">没有符合条件的老师</div>'; return; }
+  el.innerHTML = list.map(t => tutorCard(t, 'zh')).join('');
+}
+document.getElementById('f-gender').addEventListener('change', renderTutorBrowse);
+document.getElementById('f-mode').addEventListener('change', renderTutorBrowse);
+document.getElementById('f-region').addEventListener('change', renderTutorBrowse);
+document.getElementById('f-subject').addEventListener('change', renderTutorBrowse);
+
+function tutorCard(t, lang){
+  if(lang === 'en'){
+    const genderEn = GENDER_EN[t.gender] || t.gender || '';
+    const modeEn = MODE_EN[t.mode] || t.mode || '';
+    const subjectsEn = (t.subjects||[]).map(enPart).join(' / ');
+    const regionsEn = (t.regions&&t.regions.length) ? t.regions.map(enPart).join(' / ') : 'Not specified';
+    const timeslotsEn = (t.timeslots&&t.timeslots.length) ? t.timeslots.join(' / ') : 'Not specified';
+    return `
+      <div class="list-item">
+        <div class="top"><span class="name">${escapeHtml(t.name)} · ${escapeHtml(genderEn)}</span><span class="tag">${escapeHtml(t.rate||'-')}/hr</span></div>
+        <div class="meta">${escapeHtml(subjectsEn)} · ${escapeHtml(t.level)} · ${escapeHtml(t.cred)}</div>
+        <div class="meta">${escapeHtml(modeEn)} · ${escapeHtml(t.lang||'')} · ${escapeHtml(t.exp||'-')} experience · ${t.trial==='Yes' ? 'Trial lesson available' : 'No trial lesson'}</div>
+        <div class="meta">Time slots: ${escapeHtml(timeslotsEn)}</div>
+        <div class="meta">Service areas: ${escapeHtml(regionsEn)}</div>
+        ${t.bio ? `<div class="meta">${escapeHtml(t.bio)}</div>` : ''}
+      </div>
+    `;
+  }
+  return `
+    <div class="list-item">
+      <div class="top"><span class="name">${escapeHtml(t.name)} · ${escapeHtml(t.gender||'')}</span><span class="tag">${escapeHtml(t.rate||'-')}/hr</span></div>
+      <div class="meta">${(t.subjects||[]).map(escapeHtml).join(' / ')} · ${escapeHtml(t.level)} · ${escapeHtml(t.cred)}</div>
+      <div class="meta">${escapeHtml(t.mode||'')} · ${escapeHtml(t.lang||'')} · 经验${escapeHtml(t.exp||'-')} · ${t.trial==='Yes' ? '可试课' : '不提供试课'}</div>
+      <div class="meta">时段: ${(t.timeslots&&t.timeslots.length) ? t.timeslots.map(escapeHtml).join(' / ') : '未填'}</div>
+      <div class="meta">服务区域: ${(t.regions&&t.regions.length) ? t.regions.map(escapeHtml).join(' / ') : '未填'}</div>
+      ${t.bio ? `<div class="meta">${escapeHtml(t.bio)}</div>` : ''}
+    </div>
+  `;
+}
+
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+initDb();
+</script>
+
+</body>
+</html>
