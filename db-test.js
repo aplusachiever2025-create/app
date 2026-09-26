@@ -1,1 +1,0 @@
-const x=await supabase.from('match_cases').select('*'); console.log(x);
