@@ -96,6 +96,10 @@ function normalizeWhatsApp(value){
   if(d.length===8)d='65'+d;
   return d;
 }
+function formatWhatsApp(value){
+  const d=normalizeWhatsApp(value);
+  return d ? '+'+d : '-';
+}
 async function openWhatsApp(target,number,caseId){
   const d=normalizeWhatsApp(number);
   if(!d){alert('没有可用的 WhatsApp 号码');return;}
@@ -294,7 +298,7 @@ function renderParentDirectory(rows){
   if(!rows.length){el.innerHTML='<div class="meta">暂无家长需求。</div>';return}
   el.innerHTML=rows.map(p=>{
     const active=p.request_status==='active';
-    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · '+esc(p.contact_email||'-')+' · 微信 '+esc(p.contact_wechat||'-')+' · WhatsApp '+esc(p.contact_whatsapp||'-')+' · '+esc(p.region||'-')+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'开放中':p.request_status==='closed'?'已关闭':'已移除')+'</span></div><div class="actions"><button onclick="openWhatsApp(\'parent\',p.contact_whatsapp||p.contact_phone,null)">💬 WhatsApp 家长</button><button onclick="showParent('+p.id+')">查看详情</button></div><div class="meta">预算：'+esc(p.budget||'-')+' · 创建：'+esc(p.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeParent('+p.id+')">移除需求</button>':'<button onclick="restoreParent('+p.id+')">重新开放</button>')+'</div></div>';
+    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · '+esc(p.contact_email||'-')+' · 微信 '+esc(p.contact_wechat||'-')+' · WhatsApp '+esc(formatWhatsApp(p.contact_whatsapp))+' · '+esc(p.region||'-')+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'开放中':p.request_status==='closed'?'已关闭':'已移除')+'</span></div><div class="actions"><button onclick="openWhatsApp(\'parent\',p.contact_whatsapp||p.contact_phone,null)">💬 WhatsApp 家长</button><button onclick="showParent('+p.id+')">查看详情</button></div><div class="meta">预算：'+esc(p.budget||'-')+' · 创建：'+esc(p.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeParent('+p.id+')">移除需求</button>':'<button onclick="restoreParent('+p.id+')">重新开放</button>')+'</div></div>';
   }).join('');
 }
 async function openResume(path){
@@ -313,7 +317,7 @@ function renderTutorDirectory(rows){
   if(!rows.length){el.innerHTML='<div class="meta">暂无老师资料。</div>';return}
   el.innerHTML=rows.map(t=>{
     const active=t.tutor_status==='active';
-    return '<div class="case"><div class="case-head"><div><b>'+esc(t.name||'-')+'</b><div class="meta">'+esc(t.cred||'-')+' · '+esc(t.rate||'-')+' · '+esc(t.contact_phone||'-')+' · '+esc(t.contact_email||'-')+' · WhatsApp '+esc(t.whatsapp||'-')+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'接单中':'已移除')+'</span></div><div class="actions"><button onclick="openWhatsApp(\'tutor\',t.whatsapp||t.contact_phone,null)">💬 WhatsApp</button>'+(t.resume_path?'<button onclick="openResume(\''+esc(t.resume_path).replace(/'/g,"\\'")+'\')">📄 打开履历</button>':'<span class="badge warn">📄 未上传履历</span>')+'</div><div class="meta">履历：'+esc(t.resume_name||'未上传')+'</div><div class="meta">创建：'+esc(t.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeTutor('+t.id+')">移除老师</button>':'<button onclick="restoreTutor('+t.id+')">重新启用</button>')+'</div></div>';
+    return '<div class="case"><div class="case-head"><div><b>'+esc(t.name||'-')+'</b><div class="meta">'+esc(t.cred||'-')+' · '+esc(t.rate||'-')+' · '+esc(t.contact_phone||'-')+' · '+esc(t.contact_email||'-')+' · WhatsApp '+esc(formatWhatsApp(t.whatsapp))+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'接单中':'已移除')+'</span></div><div class="actions"><button onclick="openWhatsApp(\'tutor\',t.whatsapp||t.contact_phone,null)">💬 WhatsApp</button>'+(t.resume_path?'<button onclick="openResume(\''+esc(t.resume_path).replace(/'/g,"\\'")+'\')">📄 打开履历</button>':'<span class="badge warn">📄 未上传履历</span>')+'</div><div class="meta">履历：'+esc(t.resume_name||'未上传')+'</div><div class="meta">创建：'+esc(t.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeTutor('+t.id+')">移除老师</button>':'<button onclick="restoreTutor('+t.id+')">重新启用</button>')+'</div></div>';
   }).join('');
 }
 function closeModal(){document.getElementById('modal').classList.add('hidden');}
@@ -321,12 +325,12 @@ function showModal(title,body){document.getElementById('modal-title').textConten
 function item(label,value){return '<div class="detail-item"><b>'+esc(label)+'</b><div>'+esc(value||'-')+'</div></div>';}
 function showParent(id){
   const p=directoryCache.parents.find(x=>x.id===id);if(!p)return;
-  const fields=[['状态',p.request_status==='active'?'开放中':p.request_status==='closed'?'已关闭':'已移除'],['孩子年级',p.level],['科目',p.subject],['语言',p.lang],['地区',p.region],['邮编',p.postcode],['地址',p.address],['预算',p.budget],['频率',p.freq],['每次课时',p.duration],['时间',p.timeslot],['学习目标',p.goal],['老师性别要求',p.gender],['授课方式',p.mode],['老师类型',p.tutortype],['家长称呼',p.contact_name],['电话',p.contact_phone],['WhatsApp',p.contact_whatsapp],['Email',p.contact_email],['微信',p.contact_wechat],['备注',p.notes],['创建时间',p.created_at]];
+  const fields=[['状态',p.request_status==='active'?'开放中':p.request_status==='closed'?'已关闭':'已移除'],['孩子年级',p.level],['科目',p.subject],['语言',p.lang],['地区',p.region],['邮编',p.postcode],['地址',p.address],['预算',p.budget],['频率',p.freq],['每次课时',p.duration],['时间',p.timeslot],['学习目标',p.goal],['老师性别要求',p.gender],['授课方式',p.mode],['老师类型',p.tutortype],['家长称呼',p.contact_name],['电话',p.contact_phone],['WhatsApp',formatWhatsApp(p.contact_whatsapp)),['Email',p.contact_email],['微信',p.contact_wechat],['备注',p.notes],['创建时间',p.created_at]];
   showModal('家长需求 #'+id,'<div class="detail-grid">'+fields.map(x=>item(x[0],x[1])).join('')+'</div>');
 }
 function showTutor(id){
   const t=directoryCache.tutors.find(x=>x.id===id);if(!t)return;
-  const fields=[['状态',t.tutor_status==='active'?'接单中':'已移除'],['审核',t.review_status||'pending'],['Tutor ID',t.public_id],['姓名',t.name],['教学范围',Array.isArray(t.scopes)?t.scopes.join('、'):t.scopes],['年级',t.level],['学历/资质',t.cred],['收费',t.rate],['性别',t.gender],['授课方式',t.mode],['语言',t.lang],['经验',t.exp],['试听',t.trial],['服务区域',Array.isArray(t.regions)?t.regions.join('、'):t.regions],['可用时间',Array.isArray(t.timeslots)?t.timeslots.join('、'):t.timeslots],['电话',t.contact_phone],['WhatsApp',t.whatsapp],['Email',t.contact_email],['履历',t.resume_name||t.resume_path],['个人介绍',t.bio],['创建时间',t.created_at]];
+  const fields=[['状态',t.tutor_status==='active'?'接单中':'已移除'],['审核',t.review_status||'pending'],['Tutor ID',t.public_id],['姓名',t.name],['教学范围',Array.isArray(t.scopes)?t.scopes.join('、'):t.scopes],['年级',t.level],['学历/资质',t.cred],['收费',t.rate],['性别',t.gender],['授课方式',t.mode],['语言',t.lang],['经验',t.exp],['试听',t.trial],['服务区域',Array.isArray(t.regions)?t.regions.join('、'):t.regions],['可用时间',Array.isArray(t.timeslots)?t.timeslots.join('、'):t.timeslots],['电话',t.contact_phone],['WhatsApp',formatWhatsApp(t.whatsapp)),['Email',t.contact_email],['履历',t.resume_name||t.resume_path],['个人介绍',t.bio],['创建时间',t.created_at]];
   showModal('老师资料 #'+id,'<div class="detail-grid">'+fields.map(x=>item(x[0],x[1])).join('')+'</div>');
 }
 async function showCase(id){
