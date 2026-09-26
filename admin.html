@@ -280,7 +280,7 @@ function renderParentDirectory(rows){
   }).join('');
 }
 async function setTutorReview(id,status){
-  const {error}=await sb.from('tutor_profiles').update({review_status:status,tutor_status:status==='verified'?'active':'active'}).eq('id',id);
+  const {error}=await sb.from('tutor_profiles').update({review_status:status,tutor_status:status==='verified'?'active':'pending'}).eq('id',id);
   if(error){alert('审核更新失败：'+error.message);return}
   await loadDirectory();
 }
