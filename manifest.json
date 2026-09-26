@@ -1,0 +1,14 @@
+{
+  "name":"我的课程表",
+  "short_name":"课程表",
+  "description":"可跨手机、电脑访问并同步保存的个人课程表",
+  "start_url":"./course-schedule.html",
+  "scope":"./",
+  "display":"standalone",
+  "orientation":"landscape",
+  "background_color":"#eef2f4",
+  "theme_color":"#17324d",
+  "icons":[
+    {"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}
