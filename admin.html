@@ -112,7 +112,7 @@ async function openWhatsApp(target,number,caseId){
   const d=normalizeWhatsApp(number);
   if(!d){alert('没有可用的 WhatsApp 号码');return;}
   const message=target==='parent'?'您好，这里是 SG Tutor Match，想跟进您的家教需求。':'您好，这里是 SG Tutor Match，想跟进您的家教资料与 SmartMatch。';
-  const url='https://wa.me/'+d+'?text='+encodeURIComponent(message);
+  const url='https://web.whatsapp.com/send?phone='+d+'&text='+encodeURIComponent(message);
 
   // 用真实 <a> 点击打开，避免部分浏览器拦截动态 window.open。
   const a=document.createElement('a');
