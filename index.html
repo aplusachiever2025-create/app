@@ -283,10 +283,10 @@ button.primary{
       <label>Name / Preferred Title</label>
       <input id="t-name" placeholder="e.g. Ms Tan">
 
-      <label>你可以教授的范围</label>
+      <label>Teaching Scope</label>
       <div id="t-scopes"></div>
-      <button type="button" class="primary" style="margin-top:10px;background:transparent;color:var(--accent);border:1px solid var(--accent);" onclick="addTutorScope()">＋ 添加教学范围</button>
-      <div class="meta" style="margin-top:7px;">例如：P1-P6 全科；S1-S4 数学+物理；JC1-JC2 H2 Mathematics。可以添加多个范围。</div>
+      <button type="button" class="primary" style="margin-top:10px;background:transparent;color:var(--accent);border:1px solid var(--accent);" onclick="addTutorScope()">＋ Add Teaching Scope</button>
+      <div class="meta" style="margin-top:7px;">Examples: P1-P6 All Subjects; S1-S4 Mathematics + Physics; JC1-JC2 H2 Mathematics. You can add multiple teaching scopes.</div>
 
       <div class="row2">
         <div>
@@ -378,30 +378,30 @@ button.primary{
 
       <div class="row2">
         <div>
-          <label>Email（仅平台使用）</label>
-          <input id="t-email" type="email" placeholder="例如 tutor@email.com">
+          <label>Email (For Platform Use Only)</label>
+          <input id="t-email" type="email" placeholder="e.g. tutor@email.com">
         </div>
         <div>
-          <label>联系电话（仅平台使用）</label>
-          <input id="t-phone" placeholder="例如 91234567" inputmode="tel">
+          <label>Phone Number (For Platform Use Only)</label>
+          <input id="t-phone" placeholder="e.g. 91234567" inputmode="tel">
         </div>
       </div>
-      <label>WhatsApp 联系号码（仅平台使用）</label>
-      <input id="t-whatsapp" placeholder="例如 91234567 或 +65 91234567" inputmode="tel">
-      <div class="meta" style="margin-top:5px;">Email、电话和 WhatsApp 都只供平台撮合使用，不会公开给家长。</div>
+      <label>WhatsApp Number (For Platform Use Only)</label>
+      <input id="t-whatsapp" placeholder="e.g. 91234567 or +65 91234567" inputmode="tel">
+      <div class="meta" style="margin-top:5px;">Email, phone and WhatsApp are used only by the platform for matching and will not be shared with parents.</div>
 
       <label>About You</label>
       <textarea id="t-bio" placeholder="Your teaching experience, the type of students you work best with, etc."></textarea>
 
-      <label>上传履历（可选，PDF / DOC / DOCX）</label>
+      <label>Upload Resume (Optional, PDF / DOC / DOCX)</label>
       <input id="t-resume" type="file" accept=".pdf,.doc,.docx">
-      <div class="meta" style="margin-top:5px;">履历仅供 SG Tutor Match 平台审核与 SmartMatch 使用，不会公开给家长。</div>
+      <div class="meta" style="margin-top:5px;">Your resume is used only for SG Tutor Match review and SmartMatch matching and will not be shared with parents.</div>
 
       <button class="primary" onclick="submitTutor()">Submit Tutor Profile</button>
     </div>
 
-    <div class="section-title">Registered Tutors (Shared Directory)</div>
-    <div id="tutor-self-list"><div class="empty">No tutors registered yet</div></div>
+    <div class="section-title">Tutor Profile Status</div>
+    <div id="tutor-self-list"><div class="empty">Your profile will enter SmartMatch after submission.</div></div>
   </div>
 
   <div class="panel" id="panel-browse">
@@ -484,9 +484,9 @@ const STAGE_LEVELS = {
   IGCSE:['IGCSE']
 };
 const STAGE_LABELS = {
-  PRIMARY:'小学 Primary',
-  SECONDARY:'中学 Secondary',
-  JC:'初级学院 JC',
+  PRIMARY:'Primary',
+  SECONDARY:'Secondary',
+  JC:'Junior College (JC)',
   IB:'IB Diploma',
   IGCSE:'IGCSE'
 };
@@ -500,7 +500,7 @@ function addTutorScope(){
   row.dataset.scopeId = id;
   row.innerHTML = `
     <div class="scope-head">
-      <span>教学范围 #${id}</span>
+      <span>Teaching Scope #${id}</span>
       <button type="button" class="remove-scope" onclick="removeTutorScope(${id})">×</button>
     </div>
     <div class="scope-grid">
@@ -511,12 +511,12 @@ function addTutorScope(){
       <select class="scope-to" onchange="refreshTutorScopeSubjects(${id})"></select>
       <select class="scope-type" onchange="refreshTutorScopeSubjects(${id})">
         <option value="SELECTED">选择科目</option>
-        <option value="ALL">全部科目</option>
-        <option value="CUSTOM">其他 / 自定义</option>
+        <option value="ALL">All Subjects</option>
+        <option value="CUSTOM">Other / Custom</option>
       </select>
     </div>
     <div class="scope-subjects"></div>
-    <input class="scope-custom" placeholder="填写自定义科目，例如 Robotics / Coding" style="display:none;">
+    <input class="scope-custom" placeholder="Enter a custom subject, e.g. Robotics / Coding" style="display:none;">
   `;
   document.getElementById('t-scopes').appendChild(row);
   const stageSel = row.querySelector('.scope-stage');
@@ -547,7 +547,7 @@ function refreshTutorScopeSubjects(id){
   const box = row.querySelector('.scope-subjects');
   const custom = row.querySelector('.scope-custom');
   if(type === 'ALL'){
-    box.innerHTML = '<span class="pill">✓ 全部科目</span>';
+    box.innerHTML = '<span class="pill">✓ All Subjects</span>';
     custom.style.display = 'none';
     return;
   }
@@ -801,7 +801,7 @@ async function submitTutor(){
     addTutorScope();
     document.querySelectorAll('#t-regions input, #t-timeslots input').forEach(c=>c.checked=false);
     await refreshSupabaseData();
-    toast('Profile submitted · 平台会开始寻找匹配需求');
+    toast('Profile submitted · SmartMatch will start looking for suitable student requests');
   }catch(e){ console.error(e); toast('Submission failed, please try again'); }
 }
 function normalizeWhatsApp(value){
@@ -991,7 +991,7 @@ function renderParentList(){
   const el=document.getElementById('parent-list'); if(el) el.innerHTML='<div class="empty">你的需求不会公开给其他家长或老师。</div>';
 }
 function renderTutorSelfList(){
-  const el=document.getElementById('tutor-self-list'); if(el) el.innerHTML='<div class="empty">🎯 资料已进入 SmartMatch。平台会根据学生需求进行撮合。</div>';
+  const el=document.getElementById('tutor-self-list'); if(el) el.innerHTML='<div class="empty">🎯 Your profile has entered SmartMatch. The platform will match you with suitable student requests.</div>';
 }
 function renderTutorBrowse(){
   const el=document.getElementById('tutor-browse-list'); if(el) el.innerHTML='<div class="empty">🎯 这里显示你的 SmartMatch 状态。老师和家长不会在前台互相浏览资料。</div>';
