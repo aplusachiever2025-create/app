@@ -383,12 +383,14 @@ async function confirmDeal(id){
   if(!['matched','contacting','trial','pending_confirmation'].includes(c.status)){alert('请先联系家长和老师，再确认配对成功。');return;}
   const rate=Number(document.getElementById('rate-'+id).value),duration=Number(document.getElementById('duration-'+id).value),freq=Number(document.getElementById('freq-'+id).value),date=document.getElementById('date-'+id).value||null;
   if(!(rate>0&&duration>0)){alert('请填写实际课费和单次课时');return}
-  const commission=rate*duration*2;
-  const {data:{user}}=await sb.auth.getUser();
-  const {error}=await sb.from('match_cases').update({status:'confirmed',confirmed_at:new Date().toISOString(),confirmed_by:user.id,hourly_rate:rate,lesson_duration_hours:duration,lessons_per_week:freq||null,first_lesson_date:date,commission_amount:commission,commission_status:'pending'}).eq('id',id);
-  if(error){alert(error.message);return}
-  const {error:closeError}=await sb.from('parent_requests').update({request_status:'closed'}).eq('id',c.parent_request_id);
-  if(closeError){alert('成交已记录，但家长需求关闭失败：'+closeError.message);return}
+  const {data,error}=await sb.rpc('admin_confirm_match_case',{
+    p_case_id:id,
+    p_hourly_rate:rate,
+    p_lesson_duration_hours:duration,
+    p_lessons_per_week:freq||null,
+    p_first_lesson_date:date
+  });
+  if(error){alert('确认成交失败：'+error.message);return}
   await recalcScores(c.parent_request_id,c.tutor_id);
   await loadCases();
   await loadDirectory();
