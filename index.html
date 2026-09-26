@@ -372,9 +372,19 @@ button.primary{
         <label class="pill"><input type="checkbox" value="东北 North-East" style="width:auto;"> North-East</label>
       </div>
 
+      <div class="row2">
+        <div>
+          <label>Email（仅平台使用）</label>
+          <input id="t-email" type="email" placeholder="例如 tutor@email.com">
+        </div>
+        <div>
+          <label>联系电话（仅平台使用）</label>
+          <input id="t-phone" placeholder="例如 91234567" inputmode="tel">
+        </div>
+      </div>
       <label>WhatsApp 联系号码（仅平台使用）</label>
       <input id="t-whatsapp" placeholder="例如 91234567 或 +65 91234567" inputmode="tel">
-      <div class="meta" style="margin-top:5px;">平台撮合时使用，不会直接公开给家长。</div>
+      <div class="meta" style="margin-top:5px;">Email、电话和 WhatsApp 都只供平台撮合使用，不会公开给家长。</div>
 
       <label>About You</label>
       <textarea id="t-bio" placeholder="Your teaching experience, the type of students you work best with, etc."></textarea>
@@ -790,12 +800,15 @@ async function submitTutor(){
       name: tutor.name, scopes: tutor.scopes, level: tutor.level, cred: tutor.cred,
       rate: tutor.rate, gender: tutor.gender, mode: tutor.mode, lang: tutor.lang,
       exp: tutor.exp, trial: tutor.trial, regions: tutor.regions, timeslots: tutor.timeslots,
-      bio: tutor.bio, whatsapp: tutor.whatsapp
+      bio: tutor.bio, contact_email: tutor.contact_email, contact_phone: tutor.contact_phone,
+      whatsapp: tutor.whatsapp
     }).select('id').single();
     if(error) throw error;
     currentTutorId = data.id;
     sessionStorage.setItem('sgtm_tutor_id', String(data.id));
     document.getElementById('t-name').value = '';
+    document.getElementById('t-email').value = '';
+    document.getElementById('t-phone').value = '';
     document.getElementById('t-whatsapp').value = '';
     document.getElementById('t-bio').value = '';
     document.getElementById('t-scopes').innerHTML = '';
