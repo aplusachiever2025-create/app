@@ -821,14 +821,21 @@ async function submitTutor(){
     if(error) throw error;
     currentTutorId = data.id;
     if(tutor.resumeFile){
-      try{
-        const safeName = tutor.resumeFile.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-        const path = 'tutor-' + data.id + '/' + Date.now() + '-' + safeName;
-        const up = await supabaseClient.storage.from('tutor-resumes').upload(path, tutor.resumeFile, {upsert:false});
-        if(!up.error){
-          await supabaseClient.from('tutor_profiles').update({resume_path:path,resume_name:tutor.resumeFile.name,review_status:'pending'}).eq('id',data.id);
-        }
-      }catch(uploadErr){ console.warn('Resume upload skipped:', uploadErr); }
+      const safeName = tutor.resumeFile.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+      const path = 'tutor-' + data.id + '/' + Date.now() + '-' + safeName;
+      const contentType = tutor.resumeFile.type || 'application/octet-stream';
+      const up = await supabaseClient.storage.from('tutor-resumes').upload(path, tutor.resumeFile, {upsert:false,contentType});
+      if(up.error){
+        console.error('Resume upload failed:',up.error);
+        toast('资料已提交，但履历上传失败：'+up.error.message);
+        return;
+      }
+      const {error:resumeDbError} = await supabaseClient.from('tutor_profiles').update({resume_path:path,resume_name:tutor.resumeFile.name,review_status:'pending'}).eq('id',data.id);
+      if(resumeDbError){
+        console.error('Resume record update failed:',resumeDbError);
+        toast('履历已上传，但资料记录更新失败：'+resumeDbError.message);
+        return;
+      }
     }
     sessionStorage.setItem('sgtm_tutor_id', String(data.id));
     document.getElementById('t-name').value = '';
