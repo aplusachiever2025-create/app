@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SG Tutor Match · 平台后台</title>
+<title>Tutor SmartMatch · 平台后台</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <style>
@@ -18,7 +18,7 @@ main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);bo
 </style>
 </head>
 <body>
-<header><h1>SG Tutor Match · 平台撮合后台</h1><p>内部使用 · 家长/老师不会看到本页面的等级、成交和佣金数据</p></header>
+<header><h1>Tutor SmartMatch · 平台撮合后台</h1><p>内部使用 · 家长/老师不会看到本页面的等级、成交和佣金数据</p></header>
 <main>
 <section id="login" class="card login">
   <h2>平台管理员登录</h2>
@@ -131,7 +131,7 @@ async function notConcluded(id){
 }
 async function loadDirectory(){
   const [parents,tutors]=await Promise.all([
-    sb.from('parent_requests').select('id,level,subject,region,budget,contact_name,contact_phone,contact_email,request_status,removed_at,removed_reason,created_at').order('created_at',{ascending:false}),
+    sb.from('parent_requests').select('id,level,subject,region,budget,contact_name,contact_phone,contact_email,contact_wechat,request_status,removed_at,removed_reason,created_at').order('created_at',{ascending:false}),
     sb.from('tutor_profiles').select('id,name,rate,cred,contact_phone,contact_email,whatsapp,tutor_status,removed_at,removed_reason,created_at').order('created_at',{ascending:false})
   ]);
   if(parents.error){document.getElementById('parent-directory').innerHTML='<div class="meta">读取家长需求失败：'+esc(parents.error.message)+'</div>'}
@@ -144,7 +144,7 @@ function renderParentDirectory(rows){
   if(!rows.length){el.innerHTML='<div class="meta">暂无家长需求。</div>';return}
   el.innerHTML=rows.map(p=>{
     const active=p.request_status==='active';
-    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · '+esc(p.contact_email||'-')+' · '+esc(p.region||'-')+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'开放中':p.request_status==='closed'?'已关闭':'已移除')+'</span></div><div class="meta">预算：'+esc(p.budget||'-')+' · 创建：'+esc(p.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeParent('+p.id+')">移除需求</button>':'<button onclick="restoreParent('+p.id+')">重新开放</button>')+'</div></div>';
+    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · '+esc(p.contact_email||'-')+' · 微信 '+esc(p.contact_wechat||'-')+' · '+esc(p.region||'-')+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'开放中':p.request_status==='closed'?'已关闭':'已移除')+'</span></div><div class="meta">预算：'+esc(p.budget||'-')+' · 创建：'+esc(p.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeParent('+p.id+')">移除需求</button>':'<button onclick="restoreParent('+p.id+')">重新开放</button>')+'</div></div>';
   }).join('');
 }
 function renderTutorDirectory(rows){
