@@ -590,6 +590,7 @@ function initFilterSubjects(){
   const all = new Set();
   Object.values(MOE_SUBJECTS).forEach(list => list.forEach(s => all.add(s)));
   const sel = document.getElementById('f-subject');
+  if(!sel) return;
   sel.innerHTML = '<option value="">不限</option>' + Array.from(all).map(s => `<option>${s}</option>`).join('');
 }
 
@@ -981,11 +982,10 @@ function renderTutorBrowse(){
   if(!list.length){ el.innerHTML = '<div class="empty">没有符合条件的老师</div>'; return; }
   el.innerHTML = list.map(t => tutorCard(t, 'zh')).join('');
 }
-document.getElementById('f-gender').addEventListener('change', renderTutorBrowse);
-document.getElementById('f-mode').addEventListener('change', renderTutorBrowse);
-document.getElementById('f-rate').addEventListener('change', renderTutorBrowse);
-document.getElementById('f-region').addEventListener('change', renderTutorBrowse);
-document.getElementById('f-subject').addEventListener('change', renderTutorBrowse);
+['f-gender','f-mode','f-rate','f-region','f-subject'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.addEventListener('change', renderTutorBrowse);
+});
 
 function formatTutorScopes(scopes){
   if(!Array.isArray(scopes) || !scopes.length) return '未填写教学科目';
