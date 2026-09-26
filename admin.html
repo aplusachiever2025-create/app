@@ -111,6 +111,17 @@ function formatWhatsApp(value){
   const d=normalizeWhatsApp(value);
   return d ? '+'+d : '-';
 }
+function openCaseWhatsApp(caseId,target){
+  const c=cases.find(x=>x.id===caseId);
+  if(!c){alert('找不到这个撮合案例');return;}
+  const p=c.parent_requests||{},t=c.tutor_profiles||{};
+  openWhatsApp(target,target==='parent'?(p.contact_whatsapp||p.contact_phone):(t.whatsapp||t.contact_phone),caseId);
+}
+function openParentWhatsApp(parentId){
+  const p=directoryCache.parents.find(x=>x.id===parentId);
+  if(!p){alert('找不到这个家长需求');return;}
+  openWhatsApp('parent',p.contact_whatsapp||p.contact_phone,null);
+}
 async function openWhatsApp(target,number,caseId){
   const d=normalizeWhatsApp(number);
   if(!d){alert('没有可用的 WhatsApp 号码');return;}
@@ -304,7 +315,7 @@ function renderCases(){
     const form='<div class="formgrid"><div><label>实际课费/小时</label><input id="rate-'+c.id+'" type="number" min="0" step="0.5" value="'+(c.hourly_rate??'')+'" placeholder="50"></div><div><label>单次课时</label><input id="duration-'+c.id+'" type="number" min="0.5" step="0.5" value="'+(c.lesson_duration_hours??'')+'" placeholder="2"></div><div><label>每周次数</label><input id="freq-'+c.id+'" type="number" min="0.5" step="0.5" value="'+(c.lessons_per_week??'')+'" placeholder="2"></div><div><label>首次上课日期</label><input id="date-'+c.id+'" type="date" value="'+(c.first_lesson_date||'')+'"></div></div>';
     const reasons=['家长取消','老师取消','预算不合适','时间不合适','地区不合适','双方沟通后不合适','已自行找到老师','其他'];
     const reasonSelect='<select id="reason-'+c.id+'"><option value="">选择未成交原因</option>'+reasons.map(x=>'<option '+(c.not_concluded_reason===x?'selected':'')+'>'+x+'</option>').join('')+'</select>';
-    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">家长：'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · 微信 '+esc(p.contact_wechat||'-')+' · '+esc(p.contact_email||'-')+' · 老师：'+esc(t.name||'-')+' · '+esc(t.contact_phone||'-')+' · '+esc(t.contact_email||'-')+'</div></div><div class="actions" style="margin-top:0"><span class="badge '+(c.status==='confirmed'?'ok':c.status==='not_concluded'?'warn':'')+'">'+esc(statusText)+'</span><button onclick="showCase('+c.id+')">查看详情</button></div></div><div class="actions"><button onclick="openWhatsApp(\'parent\',p.contact_whatsapp||p.contact_phone,c.id)">💬 WhatsApp 家长</button><button onclick="openWhatsApp(\'tutor\',t.whatsapp||t.contact_phone,c.id)">💬 WhatsApp 老师</button></div><div class="meta">地区：'+esc(p.region||'-')+' · 家长预算：'+esc(p.budget||'-')+' · '+esc(p.freq||'-')+' · 每次'+esc(p.duration||'-')+' · '+esc(p.timeslot||'-')+'</div>'+form+'<div class="meta">预计平台佣金：S$'+(c.commission_amount?Number(c.commission_amount).toFixed(2):'—')+'</div><div class="actions"><button onclick="setStatus('+c.id+',\'contacting\')">平台沟通中</button><button onclick="setStatus('+c.id+',\'trial\')">安排试听</button><button onclick="setStatus('+c.id+',\'pending_confirmation\')">待确认</button><button class="primary" onclick="confirmDeal('+c.id+')">✓ 确认成交</button><button onclick="setStatus('+c.id+',\'ongoing\')">进入进行中</button>'+reasonSelect+'<button class="danger" onclick="notConcluded('+c.id+')">确认未成交</button></div></div>';
+    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">家长：'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · 微信 '+esc(p.contact_wechat||'-')+' · '+esc(p.contact_email||'-')+' · 老师：'+esc(t.name||'-')+' · '+esc(t.contact_phone||'-')+' · '+esc(t.contact_email||'-')+'</div></div><div class="actions" style="margin-top:0"><span class="badge '+(c.status==='confirmed'?'ok':c.status==='not_concluded'?'warn':'')+'">'+esc(statusText)+'</span><button onclick="showCase('+c.id+')">查看详情</button></div></div><div class="actions"><button onclick="openCaseWhatsApp(c.id,'parent')">💬 WhatsApp 家长</button><button onclick="openCaseWhatsApp(c.id,'tutor')">💬 WhatsApp 老师</button></div><div class="meta">地区：'+esc(p.region||'-')+' · 家长预算：'+esc(p.budget||'-')+' · '+esc(p.freq||'-')+' · 每次'+esc(p.duration||'-')+' · '+esc(p.timeslot||'-')+'</div>'+form+'<div class="meta">预计平台佣金：S$'+(c.commission_amount?Number(c.commission_amount).toFixed(2):'—')+'</div><div class="actions"><button onclick="setStatus('+c.id+',\'contacting\')">平台沟通中</button><button onclick="setStatus('+c.id+',\'trial\')">安排试听</button><button onclick="setStatus('+c.id+',\'pending_confirmation\')">待确认</button><button class="primary" onclick="confirmDeal('+c.id+')">✓ 确认成交</button><button onclick="setStatus('+c.id+',\'ongoing\')">进入进行中</button>'+reasonSelect+'<button class="danger" onclick="notConcluded('+c.id+')">确认未成交</button></div></div>';
   }).join('');
 }
 async function setStatus(id,status){
@@ -351,7 +362,7 @@ function renderParentDirectory(rows){
   if(!rows.length){el.innerHTML='<div class="meta">暂无家长需求。</div>';return}
   el.innerHTML=rows.map(p=>{
     const active=p.request_status==='active';
-    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · '+esc(p.contact_email||'-')+' · 微信 '+esc(p.contact_wechat||'-')+' · WhatsApp '+esc(formatWhatsApp(p.contact_whatsapp))+' · '+esc(p.region||'-')+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'开放中':p.request_status==='closed'?'已关闭':'已移除')+'</span></div><div class="actions"><button onclick="openWhatsApp(\'parent\',p.contact_whatsapp||p.contact_phone,null)">💬 WhatsApp 家长</button><button onclick="showParent('+p.id+')">查看详情</button></div><div class="meta">预算：'+esc(p.budget||'-')+' · 创建：'+esc(p.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeParent('+p.id+')">移除需求</button>':'<button onclick="restoreParent('+p.id+')">重新开放</button>')+'</div></div>';
+    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · '+esc(p.contact_email||'-')+' · 微信 '+esc(p.contact_wechat||'-')+' · WhatsApp '+esc(formatWhatsApp(p.contact_whatsapp))+' · '+esc(p.region||'-')+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'开放中':p.request_status==='closed'?'已关闭':'已移除')+'</span></div><div class="actions"><button onclick="openParentWhatsApp(p.id)">💬 WhatsApp 家长</button><button onclick="showParent('+p.id+')">查看详情</button></div><div class="meta">预算：'+esc(p.budget||'-')+' · 创建：'+esc(p.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeParent('+p.id+')">移除需求</button>':'<button onclick="restoreParent('+p.id+')">重新开放</button>')+'</div></div>';
   }).join('');
 }
 async function openResume(path){
