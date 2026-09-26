@@ -337,12 +337,14 @@ create table if not exists public.match_case_notes (
   note text not null,
   next_action text,
   next_action_at timestamptz,
+  completed_at timestamptz,
   created_at timestamptz not null default now()
 );
 
 alter table public.match_case_notes add column if not exists contact_target text not null default 'both';
 create index if not exists match_case_notes_case_idx on public.match_case_notes(match_case_id, created_at desc);
 create index if not exists match_case_notes_followup_idx on public.match_case_notes(next_action_at) where next_action_at is not null;
+create index if not exists match_case_notes_open_followup_idx on public.match_case_notes(next_action_at) where next_action_at is not null and completed_at is null;
 alter table public.match_case_notes enable row level security;
 
 drop policy if exists "admins read case notes" on public.match_case_notes;
@@ -353,4 +355,9 @@ drop policy if exists "admins insert case notes" on public.match_case_notes;
 create policy "admins insert case notes" on public.match_case_notes for insert to authenticated
 with check (admin_user_id = (select auth.uid()) and exists (select 1 from public.platform_admins a where a.user_id = (select auth.uid()) and a.active = true));
 
-grant select, insert on public.match_case_notes to authenticated;
+drop policy if exists "admins update case notes" on public.match_case_notes;
+create policy "admins update case notes" on public.match_case_notes for update to authenticated
+using (exists (select 1 from public.platform_admins a where a.user_id=(select auth.uid()) and a.active=true))
+with check (exists (select 1 from public.platform_admins a where a.user_id=(select auth.uid()) and a.active=true));
+
+grant select, insert, update on public.match_case_notes to authenticated;
