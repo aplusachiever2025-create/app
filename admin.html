@@ -33,49 +33,22 @@ main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);bo
   <div class="actions" style="justify-content:space-between">
     <div><b id="who"></b></div><button onclick="logout()">退出</button>
   </div>
-  <div class="grid" id="stats"></div><div class="card" style="margin-top:14px" id="followup-center">
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-    <div><h2 style="margin:0">🔔 待跟进中心</h2><div class="meta">根据时间线里的“下一步时间”自动整理，完成后可直接标记。</div></div>
-    <button onclick="loadFollowups()">刷新</button>
-  </div>
-  <div class="grid" id="followup-stats" style="margin-top:12px"></div>
-  <div id="followup-list" style="margin-top:10px"></div>
-</div>
-  <div class="card" style="margin-top:14px" id="ops-overview">
+  <div class="grid" id="stats"></div>
+  <div class="card" style="margin-top:14px" id="ops-core">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-      <div><h2 style="margin:0">📊 运营主管驾驶舱</h2><div class="meta">从“有没有案例”升级到“今天团队做了多少、漏斗走到哪里、哪些需求没人跟”。</div></div>
-      <button onclick="loadOpsOverview()">刷新驾驶舱</button>
+      <div><h2 style="margin:0">⚡ 运营核心工作台</h2><div class="meta">只保留一个运营入口：按优先级处理逾期、今天、高风险、待沟通、试听和待确认事项。</div></div>
+      <button onclick="refreshCoreWorkbench()">刷新工作台</button>
     </div>
-    <div class="grid" id="ops-kpis" style="margin-top:12px"></div>
-    <div class="detail-grid" style="margin-top:12px">
-      <div class="detail-item"><b>📈 撮合漏斗</b><div id="ops-funnel" style="margin-top:8px"></div></div>
-      <div class="detail-item"><b>👥 运营人员工作量</b><div id="ops-workload" style="margin-top:8px"></div></div>
-    </div>
-  </div>
-  <div class="card" style="margin-top:14px" id="daily-war-room">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-      <div><h2 style="margin:0">🎯 今日运营作战台</h2><div class="meta">按新加坡时间排序：先处理逾期，再处理今天任务，再处理高风险案例。</div></div>
-      <button onclick="loadWarRoom()">刷新作战台</button>
-    </div>
-    <div class="grid" id="warroom-stats" style="margin-top:12px"></div>
+    <div class="grid" id="core-work-stats" style="margin-top:12px"></div>
     <div class="actions" style="margin-top:10px;flex-wrap:wrap">
-      <button onclick="warFilter='all';renderWarRoom()">全部</button>
-      <button onclick="warFilter='overdue';renderWarRoom()">🔴 逾期</button>
-      <button onclick="warFilter='today';renderWarRoom()">🟠 今天</button>
-      <button onclick="warFilter='risk';renderWarRoom()">⚠️ 高风险</button>
-      <button onclick="warFilter='7days';renderWarRoom()">📅 未来7天</button>
+      <button onclick="coreFilter='all';renderCoreWorkbench()">全部</button>
+      <button onclick="coreFilter='overdue';renderCoreWorkbench()">🔴 逾期</button>
+      <button onclick="coreFilter='today';renderCoreWorkbench()">🟠 今天</button>
+      <button onclick="coreFilter='risk';renderCoreWorkbench()">⚠️ 高风险</button>
+      <button onclick="coreFilter='7days';renderCoreWorkbench()">📅 未来7天</button>
     </div>
-    <div id="warroom-list" style="margin-top:10px"></div>
+    <div id="core-work-list" style="margin-top:10px"></div>
   </div>
-  <div class="card" id="work-queue" style="margin-top:14px">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-      <div><h2 style="margin:0">⚡ 运营工作队列</h2><div class="meta">按“现在最该做什么”排序，不是数据库状态。运营人员每天优先处理这里。</div></div>
-      <button onclick="renderWorkQueue()">刷新队列</button>
-    </div>
-    <div class="grid" id="work-queue-stats" style="margin-top:12px"></div>
-    <div id="work-queue-list" style="margin-top:10px"></div>
-  </div>
-  <div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h2 style="margin:0">待处理撮合</h2><div class="meta">优先处理 SmartMatch 已建立的撮合案例</div></div><div class="actions" style="margin-top:0"><button onclick="filterCases('all')">全部</button><button onclick="filterCases('matched')">已配对</button><button onclick="filterCases('contacting')">沟通中</button><button onclick="filterCases('trial')">试听中</button><button onclick="filterCases('pending_confirmation')">待确认</button></div></div></div>
   <div class="note">佣金规则：确认成交时自动计算 = 实际每小时课费 × 单次课时 × 2。内部等级只用于平台运营，不会显示给家长或老师。</div>
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
@@ -107,7 +80,7 @@ main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);bo
 </div>
 <script>
 const sb=supabase.createClient(window.SUPABASE_CONFIG.url,window.SUPABASE_CONFIG.anonKey);
-let cases=[];let caseFilter='all';let directoryCache={parents:[],tutors:[]};let followups=[];let warFilter='all';let showRemovedDirectory=false;
+let cases=[];let caseFilter='all';let directoryCache={parents:[],tutors:[]};let followups=[];let warFilter='all';let coreFilter='all';let showRemovedDirectory=false;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function normalizeWhatsApp(value){
   let d=String(value||'').replace(/\D/g,'');
@@ -320,6 +293,27 @@ function renderWorkQueue(){
     const c=cases.find(x=>x.id===r.caseId),p=c?.parent_requests||{},t=c?.tutor_profiles||{};
     return '<div class="case"><div class="case-head"><div><b>'+r.color+' '+esc(r.title)+'</b><div class="meta">'+esc(p.contact_name||'-')+' ↔ '+esc(t.name||'待配对')+' · '+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</div></div><span class="badge warn">'+esc(r.action)+'</span></div><div class="meta">'+esc(r.sub)+(r.note?' · '+esc(r.note):'')+'</div><div class="actions"><button onclick="showCase('+r.caseId+')">进入处理</button><button onclick="openCaseWhatsApp('+r.caseId+',\'parent\')">💬 联系家长</button><button onclick="openCaseWhatsApp('+r.caseId+',\'tutor\')">💬 联系老师</button></div></div>';
   }).join('');
+}
+function refreshCoreWorkbench(){loadFollowups();loadCases().then(()=>renderCoreWorkbench());}
+function renderCoreWorkbench(){
+ const stats=document.getElementById('core-work-stats'),list=document.getElementById('core-work-list');if(!stats||!list)return;
+ const now=new Date(),day=new Date(now.toLocaleString('en-US',{timeZone:'Asia/Singapore'})).toISOString().slice(0,10);
+ const overdue=followups.filter(f=>!f.completed_at&&f.next_action_at&&new Date(f.next_action_at)<now);
+ const today=followups.filter(f=>!f.completed_at&&f.next_action_at&&new Date(f.next_action_at).toLocaleDateString('en-CA',{timeZone:'Asia/Singapore'})===day);
+ const next7=followups.filter(f=>!f.completed_at&&f.next_action_at&&sgDayDiff(f.next_action_at)>=0&&sgDayDiff(f.next_action_at)<=7);
+ const risk=cases.filter(warRisk),matched=cases.filter(c=>c.status==='matched'),trial=cases.filter(c=>c.status==='trial'),confirm=cases.filter(c=>c.status==='pending_confirmation');
+ stats.innerHTML='<div class="stat"><b>🔴 '+overdue.length+'</b><span>逾期</span></div><div class="stat"><b>🟠 '+today.length+'</b><span>今天要跟进</span></div><div class="stat"><b>⚠️ '+risk.length+'</b><span>高风险</span></div><div class="stat"><b>🎯 '+matched.length+'</b><span>待沟通</span></div><div class="stat"><b>🟡 '+trial.length+'</b><span>试听后</span></div><div class="stat"><b>🔵 '+confirm.length+'</b><span>待确认</span></div><div class="stat"><b>📅 '+next7.length+'</b><span>未来7天</span></div>';
+ let rows=[];
+ overdue.forEach(f=>rows.push({p:0,title:'逾期跟进',icon:'🔴',action:'立即跟进',id:f.match_case_id,sub:f.next_action||'请立即跟进',time:f.next_action_at}));
+ today.filter(f=>!overdue.some(o=>o.id===f.id)).forEach(f=>rows.push({p:1,title:'今天跟进',icon:'🟠',action:'完成今日跟进',id:f.match_case_id,sub:f.next_action||'今天处理',time:f.next_action_at}));
+ risk.forEach(c=>rows.push({p:2,title:'高风险案例',icon:'⚠️',action:'进入处理',id:c.id,sub:'超过3天没有有效跟进',time:c.last_contacted_at||c.created_at}));
+ matched.forEach(c=>rows.push({p:3,title:'待开始沟通',icon:'🎯',action:'联系双方',id:c.id,sub:'SmartMatch '+(c.match_score!=null?c.match_score+'/100':'已配对'),time:c.created_at}));
+ trial.forEach(c=>rows.push({p:4,title:'试听后处理',icon:'🟡',action:'记录试听结果',id:c.id,sub:'确认试听反馈并推进成交',time:c.last_contacted_at||c.created_at}));
+ confirm.forEach(c=>rows.push({p:5,title:'待确认成交',icon:'🔵',action:'确认成交结果',id:c.id,sub:'联系双方确认成交或未成交',time:c.last_contacted_at||c.created_at}));
+ rows=rows.filter(r=>coreFilter==='all'||(coreFilter==='overdue'&&r.p===0)||(coreFilter==='today'&&r.p===1)||(coreFilter==='risk'&&r.p===2)||(coreFilter==='7days'&&r.time&&sgDayDiff(r.time)>=0&&sgDayDiff(r.time)<=7));
+ if(!rows.length){list.innerHTML='<div class="meta">🎉 当前没有需要处理的运营事项。</div>';return}
+ rows.sort((a,b)=>a.p-b.p||new Date(a.time)-new Date(b.time));
+ list.innerHTML=rows.slice(0,25).map(r=>{const c=cases.find(x=>x.id===r.id),p=c?.parent_requests||{},t=c?.tutor_profiles||{};return '<div class="case"><div class="case-head"><div><b>'+r.icon+' '+esc(r.title)+'</b><div class="meta">'+esc(p.contact_name||'-')+' ↔ '+esc(t.name||'待配对')+' · '+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</div></div><span class="badge warn">'+esc(r.action)+'</span></div><div class="meta">'+esc(r.sub)+' · '+esc(fmtTime(r.time))+'</div><div class="actions"><button onclick="showCase('+r.id+')">进入处理</button><button onclick="openCaseWhatsApp('+r.id+',\'parent\')">💬 联系家长</button><button onclick="openCaseWhatsApp('+r.id+',\'tutor\')">💬 联系老师</button></div></div>'}).join('');
 }
 function renderStats(){
   const parents=directoryCache.parents||[],tutors=directoryCache.tutors||[];
