@@ -33,7 +33,14 @@ main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);bo
   <div class="actions" style="justify-content:space-between">
     <div><b id="who"></b></div><button onclick="logout()">退出</button>
   </div>
-  <div class="grid" id="stats"></div>
+  <div class="grid" id="stats"></div><div class="card" style="margin-top:14px" id="followup-center">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+    <div><h2 style="margin:0">🔔 待跟进中心</h2><div class="meta">根据时间线里的“下一步时间”自动整理，完成后可直接标记。</div></div>
+    <button onclick="loadFollowups()">刷新</button>
+  </div>
+  <div class="grid" id="followup-stats" style="margin-top:12px"></div>
+  <div id="followup-list" style="margin-top:10px"></div>
+</div>
   <div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h2 style="margin:0">待处理撮合</h2><div class="meta">优先处理双方有兴趣的案例</div></div><div class="actions" style="margin-top:0"><button onclick="filterCases('all')">全部</button><button onclick="filterCases('both_interested')">双方有兴趣</button><button onclick="filterCases('contacting')">沟通中</button><button onclick="filterCases('trial')">试听中</button></div></div></div>
   <div class="note">佣金规则：确认成交时自动计算 = 实际每小时课费 × 单次课时 × 2。内部等级只用于平台运营，不会显示给家长或老师。</div>
   <div class="card">
@@ -66,7 +73,7 @@ main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);bo
 </div>
 <script>
 const sb=supabase.createClient(window.SUPABASE_CONFIG.url,window.SUPABASE_CONFIG.anonKey);
-let cases=[];let caseFilter='all';let directoryCache={parents:[],tutors:[]};
+let cases=[];let caseFilter='all';let directoryCache={parents:[],tutors:[]};let followups=[];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function msg(s){document.getElementById('login-msg').textContent=s}
 async function login(){
@@ -89,11 +96,58 @@ async function boot(){
   document.getElementById('who').textContent='管理员：'+(admin.display_name||user.email);
   await loadCases();
   await loadDirectory();
+  await loadFollowups();
 }
 async function loadCases(){
   const {data,error}=await sb.from('match_cases').select('*,parent_requests(id,level,subject,region,budget,freq,duration,timeslot,goal,contact_name,contact_phone,contact_email,contact_wechat),tutor_profiles(id,name,rate,cred,whatsapp,contact_email,contact_phone,tutor_status)').order('created_at',{ascending:false});
   if(error){document.getElementById('cases').innerHTML='<div class="meta">读取失败：'+esc(error.message)+'</div>';return}
   cases=data||[];renderStats();renderCases();
+}
+function localDateKey(d){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
+function startOfLocalDay(d){const x=new Date(d);x.setHours(0,0,0,0);return x}
+function followupBucket(v){
+  const now=new Date(),day=startOfLocalDay(now),target=new Date(v),td=startOfLocalDay(target);
+  const diff=Math.round((td-day)/86400000);
+  if(diff<0)return 'overdue';if(diff===0)return 'today';if(diff===1)return 'tomorrow';return 'later'
+}
+async function loadFollowups(){
+  const el=document.getElementById('followup-list');if(!el)return;
+  el.innerHTML='<div class="meta">正在读取待跟进事项...</div>';
+  const {data,error}=await sb.from('match_case_notes').select('id,match_case_id,contact_target,note_type,note,next_action,next_action_at,created_at,completed_at,match_cases(id,status,parent_requests(contact_name,subject,level),tutor_profiles(name))').not('next_action_at','is',null).is('completed_at',null).order('next_action_at',{ascending:true});
+  if(error){el.innerHTML='<div class="meta">读取失败：'+esc(error.message)+'</div>';return}
+  followups=data||[];
+  const counts={overdue:0,today:0,tomorrow:0};followups.forEach(x=>{const b=followupBucket(x.next_action_at);if(counts[b]!==undefined)counts[b]++});
+  document.getElementById('followup-stats').innerHTML=
+    '<div class="stat" style="cursor:pointer" onclick="showFollowups(\'overdue\')"><b>⚪ '+counts.overdue+'</b><span>已逾期未跟进</span></div>'+
+    '<div class="stat" style="cursor:pointer" onclick="showFollowups(\'today\')"><b>🔴 '+counts.today+'</b><span>今天要跟进</span></div>'+
+    '<div class="stat" style="cursor:pointer" onclick="showFollowups(\'tomorrow\')"><b>🟠 '+counts.tomorrow+'</b><span>明天要跟进</span></div>';
+  renderFollowups(followups);
+}
+function followStatusText(s){return {new:'一方有兴趣',both_interested:'双方有兴趣',contacting:'平台沟通中',trial:'已安排试听',confirmed:'已确认成交',not_concluded:'未成交',cancelled:'已取消'}[s]||s}
+function renderFollowups(rows){
+  const el=document.getElementById('followup-list');
+  if(!rows.length){el.innerHTML='<div class="meta">🎉 暂时没有待跟进事项。</div>';return}
+  const groups={overdue:'⚪ 已逾期',today:'🔴 今天',tomorrow:'🟠 明天',later:'📅 以后'};
+  el.innerHTML=rows.map(n=>{
+    const c=n.match_cases||{},p=c.parent_requests||{},t=c.tutor_profiles||{},b=followupBucket(n.next_action_at);
+    return '<div class="case" style="cursor:pointer" onclick="showCase('+n.match_case_id+')">'+
+      '<div class="case-head"><div><b>'+esc(p.contact_name||'-')+' ↔ '+esc(t.name||'-')+'</b><div class="meta">'+esc(p.subject||'-')+' · '+esc(p.level||'-')+' · 案例 #'+n.match_case_id+'</div></div>'+
+      '<div class="actions" style="margin-top:0"><span class="badge '+(b==='today'?'warn':'')+'">'+groups[b]+'</span><span class="badge">'+esc(followStatusText(c.status))+'</span></div></div>'+
+      '<div class="meta">上次记录：'+esc(String(n.note||'').replace(/\n/g,' '))+'</div>'+
+      '<div style="margin-top:6px"><b>➡ 下一步：'+esc(n.next_action||'-')+'</b> · 到期：'+esc(fmtTime(n.next_action_at))+'</div>'+
+      '<div class="actions"><button onclick="event.stopPropagation();completeFollowup('+n.id+')">✓ 已完成</button><button onclick="event.stopPropagation();showCase('+n.match_case_id+')">查看案例</button></div>'+
+      '</div>';
+  }).join('');
+}
+function showFollowups(bucket){
+  const rows=bucket?followups.filter(x=>followupBucket(x.next_action_at)===bucket):followups;
+  renderFollowups(rows);
+  document.getElementById('followup-list')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function completeFollowup(id){
+  const {error}=await sb.from('match_case_notes').update({completed_at:new Date().toISOString()}).eq('id',id);
+  if(error){alert('操作失败：'+error.message);return}
+  await loadFollowups();
 }
 function renderStats(){
   const parents=directoryCache.parents||[],tutors=directoryCache.tutors||[];
