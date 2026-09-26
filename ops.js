@@ -4,7 +4,7 @@ const E=x=>String(x??'').replace(/[&<>"']/g,z=>({'&':'&amp;','<':'&lt;','>':'&gt
 const SG=x=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Singapore'}).format(new Date(x));
 const dayDiff=x=>Math.round((new Date(SG(x)+'T00:00:00+08:00')-new Date(SG(Date.now())+'T00:00:00+08:00'))/864e5);
 const daysSince=x=>x?Math.max(0,Math.floor((Date.now()-new Date(x).getTime())/864e5)):999;
-const S=x=>({new:'一方有兴趣',both_interested:'双方有兴趣',contacting:'沟通中',trial:'试听中',confirmed:'已成交',not_concluded:'未成交',cancelled:'已取消'}[x]||x);
+const S=x=>({new:'新需求',matched:'已配对',contacting:'沟通中',trial:'试听中',pending_confirmation:'待确认',confirmed:'已成交',ongoing:'进行中',not_concluded:'未成交',cancelled:'已取消'}[x]||x);
 const terminal=x=>['confirmed','cancelled','not_concluded'].includes(x);
 const today=()=>SG(Date.now());
 function boot(){s.auth.getUser().then(async({data:{user}})=>{if(!user){msg.textContent='请先登录平台后台';return}const{data:a,error}=await s.from('platform_admins').select('user_id,display_name,active').eq('user_id',user.id).maybeSingle();if(error||!a?.active){msg.textContent='当前账号没有管理员权限';return}msg.remove();app.classList.remove('hidden');me.textContent='当前登录：'+(a.display_name||user.email);load()})}
@@ -26,8 +26,8 @@ function renderKpi(){
  kpi.innerHTML=[['🎯',rate===null?'—':rate+'%','今日完成率'],['✓',completedToday.length,'今日完成跟进'],['🔴',overdue,'当前逾期未跟进'],['⚠️',risk,'连续未跟进案例'],['🔄',activeCases,'进行中撮合'],['💰',confirmed,'累计已成交案例']].map(x=>'<div class="stat"><b>'+x[0]+' '+x[1]+'</b><span>'+x[2]+'</span></div>').join('');
 }
 function renderFunnel(){
- const steps=[['new','有兴趣',C.filter(c=>c.status==='new').length],['both_interested','双方有兴趣',C.filter(c=>c.status==='both_interested').length],['contacting','沟通中',C.filter(c=>c.status==='contacting').length],['trial','试听中',C.filter(c=>c.status==='trial').length],['confirmed','已成交',C.filter(c=>c.status==='confirmed').length]],base=Math.max(1,steps.reduce((s,x)=>s+x[2],0));
- funnel.innerHTML=steps.map((x,i)=>{const pct=Math.round(x[2]/base*100),prev=i?steps[i-1][2]:x[2],cv=i&&prev?Math.round(x[2]/prev*100):100;return '<div class="row"><div style="min-width:125px"><b>'+x[1]+'</b><div class="mini">阶段转化 '+cv+'%</div></div><div style="flex:1"><div class="bar"><i style="width:'+Math.min(100,pct)+'%"></i></div></div><b>'+x[2]+'</b></div>'}).join('')+'<div class="mini" style="margin-top:10px">总成交率：'+Math.round(steps[4][2]/base*100)+'% · 未成交 '+C.filter(c=>c.status==='not_concluded').length+' · 已取消 '+C.filter(c=>c.status==='cancelled').length+'</div>';
+ const steps=[['new','新需求',C.filter(c=>c.status==='new').length],['matched','已配对',C.filter(c=>c.status==='matched').length],['contacting','沟通中',C.filter(c=>c.status==='contacting').length],['trial','试听中',C.filter(c=>c.status==='trial').length],['pending_confirmation','待确认',C.filter(c=>c.status==='pending_confirmation').length],['confirmed','已成交',C.filter(c=>c.status==='confirmed').length],['ongoing','进行中',C.filter(c=>c.status==='ongoing').length]],base=Math.max(1,steps.reduce((s,x)=>s+x[2],0));
+ funnel.innerHTML=steps.map((x,i)=>{const pct=Math.round(x[2]/base*100),prev=i?steps[i-1][2]:x[2],cv=i&&prev?Math.round(x[2]/prev*100):100;return '<div class="row"><div style="min-width:125px"><b>'+x[1]+'</b><div class="mini">阶段转化 '+cv+'%</div></div><div style="flex:1"><div class="bar"><i style="width:'+Math.min(100,pct)+'%"></i></div></div><b>'+x[2]+'</b></div>'}).join('')+'<div class="mini" style="margin-top:10px">总成交率：'+Math.round(steps[5][2]/base*100)+'% · 未成交 '+C.filter(c=>c.status==='not_concluded').length+' · 已取消 '+C.filter(c=>c.status==='cancelled').length+'</div>';
 }
 function renderPending(){
  const activeParents=P.filter(x=>x.request_status==='active').length,activeTutors=T.filter(x=>x.tutor_status==='active').length,parentOpenCases=C.filter(c=>!terminal(c.status)).map(c=>c.parent_request_id).filter((v,i,a)=>a.indexOf(v)===i).length,tutorOpenCases=C.filter(c=>!terminal(c.status)).map(c=>c.tutor_id).filter((v,i,a)=>a.indexOf(v)===i).length;
