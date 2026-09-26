@@ -239,7 +239,7 @@ async function loadCaseTimeline(id){
   const rows=data||[];
   if(!rows.length){el.innerHTML='<div class="meta">还没有记录。第一次联系家长或老师后，就在这里留下记录。</div>';return}
   el.innerHTML=rows.map(n=>'<div style="border-left:3px solid var(--line);padding:10px 0 10px 14px;margin:10px 0">'+
-    '<div><b>'+esc(timelineWhoText(n.note_type==='call'||n.note_type==='whatsapp'||n.note_type==='email'?n.note_type==='email'?'parent':'parent':'both'))+'</b> <span class="badge">'+esc(timelineTypeText(n.note_type))+'</span> <span class="meta">'+esc(fmtTime(n.created_at))+'</span></div>'+
+    '<div><b>'+esc(timelineWhoText(n.contact_target))+'</b> <span class="badge">'+esc(timelineTypeText(n.note_type))+'</span> <span class="meta">'+esc(fmtTime(n.created_at))+'</span></div>'+
     '<div style="margin-top:5px;white-space:pre-wrap">'+esc(n.note)+'</div>'+
     (n.next_action?'<div class="meta" style="margin-top:5px">➡ 下一步：'+esc(n.next_action)+(n.next_action_at?' · '+esc(fmtTime(n.next_action_at)):'')+'</div>':'')+
     (n.platform_admins?.display_name?'<div class="meta">记录人：'+esc(n.platform_admins.display_name)+'</div>':'')+
@@ -256,7 +256,7 @@ async function saveCaseTimeline(id){
   const {data:{user}}=await sb.auth.getUser();
   if(!user){alert('登录已失效，请重新登录');return}
   const fullNote='联系对象：'+timelineWhoText(who)+'\n'+note;
-  const {error}=await sb.from('match_case_notes').insert({match_case_id:id,admin_user_id:user.id,note_type:type,note:fullNote,next_action:next,next_action_at:nextAt});
+  const {error}=await sb.from('match_case_notes').insert({match_case_id:id,admin_user_id:user.id,contact_target:who,note_type:type,note:note,next_action:next,next_action_at:nextAt});
   if(error){alert('保存失败：'+error.message);return}
   await sb.from('match_cases').update({last_contacted_at:new Date().toISOString()}).eq('id',id);
   document.getElementById('timeline-note').value='';document.getElementById('timeline-next').value='';document.getElementById('timeline-next-at').value='';
