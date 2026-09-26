@@ -187,11 +187,19 @@ create policy "public read tutor profiles" on public.tutor_profiles for select t
 drop policy if exists "public insert tutor profiles" on public.tutor_profiles;
 create policy "public insert tutor profiles" on public.tutor_profiles for insert to anon, authenticated with check (true);
 
+drop policy if exists "admins read tutor profiles" on public.tutor_profiles;
+create policy "admins read tutor profiles" on public.tutor_profiles for select to authenticated
+using (exists (select 1 from public.platform_admins a where a.user_id = (select auth.uid()) and a.active = true));
+
 drop policy if exists "public insert match interests" on public.match_interests;
 create policy "public insert match interests" on public.match_interests for insert to anon, authenticated with check (true);
 
 revoke all on public.parent_requests from anon, authenticated;
 grant insert on public.parent_requests to anon, authenticated;
+
+revoke all on public.tutor_profiles from anon, authenticated;
+grant insert on public.tutor_profiles to anon, authenticated;
+grant select on public.tutor_profiles to authenticated;
 
 revoke all on public.parent_opportunities from anon, authenticated;
 grant select on public.parent_opportunities to anon, authenticated;
