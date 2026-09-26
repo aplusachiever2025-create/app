@@ -318,7 +318,7 @@ function renderWorkQueue(){
   rows.sort((x,y)=>x.priority-y.priority||new Date(x.time)-new Date(y.time));
   list.innerHTML=rows.slice(0,25).map(r=>{
     const c=cases.find(x=>x.id===r.caseId),p=c?.parent_requests||{},t=c?.tutor_profiles||{};
-    return '<div class="case"><div class="case-head"><div><b>'+r.color+' '+esc(r.title)+'</b><div class="meta">'+esc(p.contact_name||'-')+' ↔ '+esc(t.name||'待配对')+' · '+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</div></div><span class="badge warn">'+esc(r.action)+'</span></div><div class="meta">'+esc(r.sub)+(r.note?' · '+esc(r.note):'')+'</div><div class="actions"><button onclick="showCase('+r.caseId+')">进入处理</button><button onclick="openCaseWhatsApp('+r.caseId+",&quot;parent&quot;)">💬 联系家长</button><button onclick="openCaseWhatsApp('+r.caseId+",&quot;tutor&quot;)">💬 联系老师</button></div></div>';
+    return '<div class="case"><div class="case-head"><div><b>'+r.color+' '+esc(r.title)+'</b><div class="meta">'+esc(p.contact_name||'-')+' ↔ '+esc(t.name||'待配对')+' · '+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</div></div><span class="badge warn">'+esc(r.action)+'</span></div><div class="meta">'+esc(r.sub)+(r.note?' · '+esc(r.note):'')+'</div><div class="actions"><button onclick="showCase('+r.caseId+')">进入处理</button><button onclick="openCaseWhatsApp('+r.caseId+',\'parent\')">💬 联系家长</button><button onclick="openCaseWhatsApp('+r.caseId+',\'tutor\')">💬 联系老师</button></div></div>';
   }).join('');
 }
 function renderStats(){
