@@ -406,53 +406,9 @@ button.primary{
 
   <div class="panel" id="panel-browse">
     <div class="card">
-      <div class="row2">
-        <div>
-          <label>性别筛选</label>
-          <select id="f-gender">
-            <option value="">不限</option>
-            <option>女</option>
-            <option>男</option>
-          </select>
-        </div>
-        <div>
-          <label>授课方式筛选</label>
-          <select id="f-mode">
-            <option value="">不限</option>
-            <option>上门（可到学生家）</option>
-            <option>仅线上</option>
-            <option>上门+线上均可</option>
-          </select>
-        </div>
-      </div>
-      <label>收费范围筛选</label>
-      <select id="f-rate">
-        <option value="">不限</option>
-        <option>$20-30</option>
-        <option>$30-40</option>
-        <option>$40-60</option>
-        <option>$60-80</option>
-        <option>$80-100</option>
-        <option>$100-120</option>
-        <option>$120-150</option>
-        <option>$150+</option>
-      </select>
-      <label>科目筛选</label>
-      <select id="f-subject">
-        <option value="">不限</option>
-      </select>
-      <label>服务区域筛选</label>
-      <select id="f-region">
-        <option value="">不限</option>
-        <option>中央 Central</option>
-        <option>东部 East</option>
-        <option>西部 West</option>
-        <option>北部 North</option>
-        <option>东北 North-East</option>
-      </select>
+      <div class="section-title">🎯 SmartMatch 状态</div>
+      <div id="smartmatch-status"><div class="empty">提交家长需求或老师资料后，这里会显示你的 SmartMatch 状态。</div></div>
     </div>
-    <div class="section-title">符合条件的老师</div>
-    <div id="tutor-browse-list"><div class="empty">还没有老师入驻，去 "I'm a Tutor" 页提交资料</div></div>
   </div>
 
 </main>
@@ -1090,11 +1046,49 @@ function renderTutorSelfList(){
 function renderTutorBrowse(){
   const el=document.getElementById('tutor-browse-list'); if(el) el.innerHTML='<div class="empty">🎯 这里显示你的 SmartMatch 状态。老师和家长不会在前台互相浏览资料。</div>';
 }
+async function renderSmartMatchStatus(){
+  const el=document.getElementById('smartmatch-status');
+  if(!el) return;
+  if(!supabaseClient){el.innerHTML='<div class="empty">数据库尚未连接，请稍后再试。</div>';return;}
+  const parentId=currentParentRequestId, tutorId=currentTutorId;
+  if(!parentId && !tutorId){el.innerHTML='<div class="empty">请先提交家长需求或老师资料。提交后，平台会在这里显示 SmartMatch 进度。</div>';return;}
+  const statusText={new:'新需求',matched:'已配对',contacting:'平台沟通中',trial:'试听中',pending_confirmation:'待确认',confirmed:'已确认成交',ongoing:'进行中',not_concluded:'未成交',cancelled:'已取消'};
+  try{
+    let html='';
+    if(parentId){
+      const {data:req,error}=await supabaseClient.from('parent_requests').select('id,public_id,subject,level,request_status').eq('id',parentId).maybeSingle();
+      if(error) throw error;
+      if(req){
+        const {data:cases,error:e}=await supabaseClient.from('match_cases').select('status,created_at,last_contacted_at').eq('parent_request_id',parentId).order('created_at',{ascending:false}).limit(1);
+        if(e) throw e;
+        const latest=cases&&cases[0], status=latest?(statusText[latest.status]||latest.status):(req.request_status==='closed'?'需求已关闭':'等待平台匹配');
+        html+='<div class="match-card"><div class="match-head"><span class="match-name">🎯 家长需求</span><span class="match-score">'+status+'</span></div><div class="meta">需求编号：'+escapeHtml(req.public_id||('PR-'+req.id))+'</div><div class="meta">年级：'+escapeHtml(req.level||'-')+' · 科目：'+escapeHtml(req.subject||'-')+'</div><div class="match-reasons">你不需要自己浏览老师。SG Tutor Match 会根据需求进行 SmartMatch，并在合适阶段联系你。</div></div>';
+      }
+    }
+    if(tutorId){
+      const {data:t,error}=await supabaseClient.from('tutor_profiles').select('id,public_id,name,tutor_status,review_status').eq('id',tutorId).maybeSingle();
+      if(error) throw error;
+      if(t){
+        const {data:cases,error:e}=await supabaseClient.from('match_cases').select('status,created_at,last_contacted_at').eq('tutor_id',tutorId).order('created_at',{ascending:false}).limit(1);
+        if(e) throw e;
+        const latest=cases&&cases[0];
+        let status='资料审核中';
+        if(t.tutor_status==='removed') status='暂不接单';
+        else if(latest) status=statusText[latest.status]||latest.status;
+        else if(t.tutor_status==='active') status='已进入 SmartMatch';
+        html+='<div class="match-card"><div class="match-head"><span class="match-name">🎓 老师资料</span><span class="match-score">'+escapeHtml(status)+'</span></div><div class="meta">老师编号：'+escapeHtml(t.public_id||('TU-'+t.id))+'</div><div class="meta">审核状态：'+escapeHtml(t.review_status||'pending')+'</div><div class="match-reasons">您的资料不会公开给家长。平台会根据学生需求进行 SmartMatch，合适时由运营人员联系您。</div></div>';
+      }
+    }
+    el.innerHTML=html||'<div class="empty">暂时没有可显示的 SmartMatch 状态。</div>';
+  }catch(err){
+    console.error('SmartMatch status error:',err);
+    el.innerHTML='<div class="empty">SmartMatch 状态暂时无法读取，请稍后刷新重试。</div>';
+  }
+}
 const oldSwitchTab=window.__switchTab;
 window.__switchTab=function(name){
-  if(name==='browse') name='tutor';
   if(typeof oldSwitchTab==='function') oldSwitchTab(name);
-  const p=document.getElementById('panel-browse'); if(p) p.classList.remove('active');
+  if(name==='browse') renderSmartMatchStatus();
 };
 
 try { initDb(); } catch (err) { console.warn('App initialization failed:', err); }
