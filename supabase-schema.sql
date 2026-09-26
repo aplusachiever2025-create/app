@@ -203,6 +203,13 @@ revoke all on public.tutor_internal_scores from anon, authenticated;
 revoke all on public.parent_internal_scores from anon, authenticated;
 revoke all on public.platform_admins from anon, authenticated;
 
+grant select, update on public.match_cases to authenticated;
+grant select on public.parent_requests to authenticated;
+grant select on public.match_interests to authenticated;
+grant select, insert, update on public.tutor_internal_scores to authenticated;
+grant select, insert, update on public.parent_internal_scores to authenticated;
+grant select on public.platform_admins to authenticated;
+
 drop policy if exists "admins read platform admins" on public.platform_admins;
 create policy "admins read platform admins" on public.platform_admins for select to authenticated
 using (user_id = (select auth.uid()));
