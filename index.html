@@ -711,7 +711,7 @@ async function submitParent(){
     tutortype: document.getElementById('p-tutortype').value
   };
   try{
-    const { data, error } = await supabaseClient.from('parent_requests').insert({
+    const { error } = await supabaseClient.from('parent_requests').insert({
       level: req.level, subject: req.subject, lang: req.lang, postcode: req.postcode,
       region: req.region, address: req.address, budget: req.budget, freq: req.freq,
       duration: req.duration, timeslot: req.timeslot, goal: req.goal, gender: req.gender,
@@ -720,11 +720,10 @@ async function submitParent(){
       contact_email: document.getElementById('p-contact-email').value.trim(),
       contact_wechat: document.getElementById('p-contact-wechat').value.trim(),
       contact_whatsapp: document.getElementById('p-contact-whatsapp').value.trim()
-    }).select('id').single();
+    });
     if(error) throw error;
-    req.id = data.id;
-    currentParentRequestId = data.id;
-    sessionStorage.setItem('sgtm_parent_request_id', String(data.id));
+    currentParentRequestId = null;
+    sessionStorage.setItem('sgtm_parent_submitted', '1');
     document.getElementById('p-postcode').value = '';
     document.getElementById('p-address').value = '';
     document.getElementById('p-custom-subject').value = '';
@@ -780,17 +779,17 @@ async function submitTutor(){
         return;
       }
     }
-    const { data, error } = await supabaseClient.from('tutor_profiles').insert({
+    const { error } = await supabaseClient.from('tutor_profiles').insert({
       name: tutor.name, scopes: tutor.scopes, level: tutor.level, cred: tutor.cred,
       rate: tutor.rate, gender: tutor.gender, mode: tutor.mode, lang: tutor.lang,
       exp: tutor.exp, trial: tutor.trial, regions: tutor.regions, timeslots: tutor.timeslots,
       bio: tutor.bio, contact_email: tutor.contact_email, contact_phone: tutor.contact_phone,
       whatsapp: tutor.whatsapp, tutor_status:'pending', review_status:'pending',
       resume_path:resumePath, resume_name:resumeName
-    }).select('id').single();
+    });
     if(error) throw error;
-    currentTutorId = data.id;
-    sessionStorage.setItem('sgtm_tutor_id', String(data.id));
+    currentTutorId = null;
+    sessionStorage.setItem('sgtm_tutor_submitted', '1');
     document.getElementById('t-name').value = '';
     document.getElementById('t-email').value = '';
     document.getElementById('t-phone').value = '';
@@ -1049,10 +1048,18 @@ async function renderSmartMatchStatus(){
   if(!el) return;
   if(!supabaseClient){el.innerHTML='<div class="empty">数据库尚未连接，请稍后再试。</div>';return;}
   const parentId=currentParentRequestId, tutorId=currentTutorId;
-  if(!parentId && !tutorId){el.innerHTML='<div class="empty">请先提交家长需求或老师资料。提交后，平台会在这里显示 SmartMatch 进度。</div>';return;}
+  const parentSubmitted=sessionStorage.getItem('sgtm_parent_submitted')==='1';
+  const tutorSubmitted=sessionStorage.getItem('sgtm_tutor_submitted')==='1';
+  if(!parentId && !tutorId && !parentSubmitted && !tutorSubmitted){el.innerHTML='<div class="empty">请先提交家长需求或老师资料。提交后，平台会在这里显示 SmartMatch 进度。</div>';return;}
   const statusText={new:'新需求',matched:'已配对',contacting:'平台沟通中',trial:'试听中',pending_confirmation:'待确认',confirmed:'已确认成交',ongoing:'进行中',not_concluded:'未成交',cancelled:'已取消'};
   try{
     let html='';
+    if(parentSubmitted && !parentId){
+      html+='<div class="match-card"><div class="match-head"><span class="match-name">🎯 家长需求</span><span class="match-score">已提交</span></div><div class="meta">您的需求已经进入 SG Tutor Match 后台。</div><div class="match-reasons">SmartMatch 会按教育阶段、科目和年级相似度寻找老师；平台运营人员会在合适阶段联系您。</div></div>';
+    }
+    if(tutorSubmitted && !tutorId){
+      html+='<div class="match-card"><div class="match-head"><span class="match-name">🎓 老师资料</span><span class="match-score">已提交</span></div><div class="meta">您的资料已经进入 SG Tutor Match 后台审核。</div><div class="match-reasons">审核通过后，SmartMatch 会按学生需求进行后台撮合，平台会在合适阶段联系您。</div></div>';
+    }
     if(parentId){
       const {data:req,error}=await supabaseClient.from('parent_requests').select('id,public_id,subject,level,request_status').eq('id',parentId).maybeSingle();
       if(error) throw error;
