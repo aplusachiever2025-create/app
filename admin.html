@@ -13,8 +13,8 @@ header{background:var(--card);border-bottom:1px solid var(--line);padding:20px;p
 main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px}
 .login{max-width:420px;margin:60px auto}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{padding:14px;border:1px solid var(--line);border-radius:12px}.stat b{display:block;font-size:22px}.stat span{color:var(--sub);font-size:12px}
 .case{border:1px solid var(--line);border-radius:14px;padding:15px;margin:10px 0}.case-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.badge{padding:4px 9px;border-radius:999px;background:#f1ece5;font-size:12px}.badge.ok{background:#e8f4ed;color:var(--ok)}.badge.warn{background:#fff3d9;color:var(--warn)}
-.meta{font-size:13px;color:var(--sub);line-height:1.55;margin-top:4px}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}button{border:1px solid var(--line);background:#fff;padding:9px 12px;border-radius:9px;cursor:pointer}button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}button.danger{color:#9a3c2c}.formgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}input,select,textarea{width:100%;padding:9px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);font:inherit}.hidden{display:none}.note{background:#fff8e8;border:1px solid #ead8aa;padding:10px;border-radius:10px;font-size:12px;color:#765b1d;margin-top:10px}
-@media(max-width:760px){.grid,.formgrid{grid-template-columns:1fr 1fr}.case-head{align-items:flex-start;flex-direction:column}}
+.meta{font-size:13px;color:var(--sub);line-height:1.55;margin-top:4px}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}button{border:1px solid var(--line);background:#fff;padding:9px 12px;border-radius:9px;cursor:pointer}button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}button.danger{color:#9a3c2c}.formgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}input,select,textarea{width:100%;padding:9px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);font:inherit}.modal{position:fixed;inset:0;background:rgba(0,0,0,.38);display:flex;align-items:center;justify-content:center;padding:18px;z-index:20}.modal-box{background:#fff;border-radius:16px;max-width:760px;width:100%;max-height:90vh;overflow:auto;padding:20px}.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.detail-item{border:1px solid var(--line);border-radius:10px;padding:10px}.detail-item b{display:block;font-size:12px;color:var(--sub);margin-bottom:3px}.hidden{display:none}.note{background:#fff8e8;border:1px solid #ead8aa;padding:10px;border-radius:10px;font-size:12px;color:#765b1d;margin-top:10px}
+@media(max-width:760px){.grid,.formgrid,.detail-grid{grid-template-columns:1fr 1fr}.case-head{align-items:flex-start;flex-direction:column}}
 </style>
 </head>
 <body>
@@ -117,7 +117,7 @@ function renderCases(){
     const form='<div class="formgrid"><div><label>实际课费/小时</label><input id="rate-'+c.id+'" type="number" min="0" step="0.5" value="'+(c.hourly_rate??'')+'" placeholder="50"></div><div><label>单次课时</label><input id="duration-'+c.id+'" type="number" min="0.5" step="0.5" value="'+(c.lesson_duration_hours??'')+'" placeholder="2"></div><div><label>每周次数</label><input id="freq-'+c.id+'" type="number" min="0.5" step="0.5" value="'+(c.lessons_per_week??'')+'" placeholder="2"></div><div><label>首次上课日期</label><input id="date-'+c.id+'" type="date" value="'+(c.first_lesson_date||'')+'"></div></div>';
     const reasons=['家长取消','老师取消','预算不合适','时间不合适','地区不合适','双方沟通后不合适','已自行找到老师','其他'];
     const reasonSelect='<select id="reason-'+c.id+'"><option value="">选择未成交原因</option>'+reasons.map(x=>'<option '+(c.not_concluded_reason===x?'selected':'')+'>'+x+'</option>').join('')+'</select>';
-    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">家长：'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · 微信 '+esc(p.contact_wechat||'-')+' · '+esc(p.contact_email||'-')+' · 老师：'+esc(t.name||'-')+' · '+esc(t.contact_phone||'-')+' · '+esc(t.contact_email||'-')+'</div></div><span class="badge '+(c.status==='confirmed'?'ok':c.status==='not_concluded'?'warn':'')+'">'+esc(statusText)+'</span></div><div class="meta">地区：'+esc(p.region||'-')+' · 家长预算：'+esc(p.budget||'-')+' · '+esc(p.freq||'-')+' · 每次'+esc(p.duration||'-')+' · '+esc(p.timeslot||'-')+'</div>'+form+'<div class="meta">预计平台佣金：S$'+(c.commission_amount?Number(c.commission_amount).toFixed(2):'—')+'</div><div class="actions"><button onclick="setStatus('+c.id+',\'contacting\')">平台沟通中</button><button onclick="setStatus('+c.id+',\'trial\')">安排试听</button><button class="primary" onclick="confirmDeal('+c.id+')">✓ 确认成交</button>'+reasonSelect+'<button class="danger" onclick="notConcluded('+c.id+')">确认未成交</button></div></div>';
+    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">家长：'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · 微信 '+esc(p.contact_wechat||'-')+' · '+esc(p.contact_email||'-')+' · 老师：'+esc(t.name||'-')+' · '+esc(t.contact_phone||'-')+' · '+esc(t.contact_email||'-')+'</div></div><div class="actions" style="margin-top:0"><span class="badge '+(c.status==='confirmed'?'ok':c.status==='not_concluded'?'warn':'')+'">'+esc(statusText)+'</span><button onclick="showCase('+c.id+')">查看详情</button></div></div><div class="meta">地区：'+esc(p.region||'-')+' · 家长预算：'+esc(p.budget||'-')+' · '+esc(p.freq||'-')+' · 每次'+esc(p.duration||'-')+' · '+esc(p.timeslot||'-')+'</div>'+form+'<div class="meta">预计平台佣金：S$'+(c.commission_amount?Number(c.commission_amount).toFixed(2):'—')+'</div><div class="actions"><button onclick="setStatus('+c.id+',\'contacting\')">平台沟通中</button><button onclick="setStatus('+c.id+',\'trial\')">安排试听</button><button class="primary" onclick="confirmDeal('+c.id+')">✓ 确认成交</button>'+reasonSelect+'<button class="danger" onclick="notConcluded('+c.id+')">确认未成交</button></div></div>';
   }).join('');
 }
 async function setStatus(id,status){
@@ -150,8 +150,8 @@ async function notConcluded(id){
 }
 async function loadDirectory(){
   const [parents,tutors]=await Promise.all([
-    sb.from('parent_requests').select('id,level,subject,region,budget,contact_name,contact_phone,contact_email,contact_wechat,request_status,removed_at,removed_reason,created_at').order('created_at',{ascending:false}),
-    sb.from('tutor_profiles').select('id,name,rate,cred,contact_phone,contact_email,whatsapp,tutor_status,removed_at,removed_reason,created_at').order('created_at',{ascending:false})
+    sb.from('parent_requests').select('*').order('created_at',{ascending:false}),
+    sb.from('tutor_profiles').select('*').order('created_at',{ascending:false})
   ]);
   if(parents.error){document.getElementById('parent-directory').innerHTML='<div class="meta">读取家长需求失败：'+esc(parents.error.message)+'</div>'}
   else {directoryCache.parents=parents.data||[];renderParentDirectory(directoryCache.parents);}
@@ -174,6 +174,101 @@ function renderTutorDirectory(rows){
     const active=t.tutor_status==='active';
     return '<div class="case"><div class="case-head"><div><b>'+esc(t.name||'-')+'</b><div class="meta">'+esc(t.cred||'-')+' · '+esc(t.rate||'-')+' · '+esc(t.contact_phone||'-')+' · '+esc(t.contact_email||'-')+' · WhatsApp '+esc(t.whatsapp||'-')+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'接单中':'已移除')+'</span></div><div class="meta">创建：'+esc(t.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeTutor('+t.id+')">移除老师</button>':'<button onclick="restoreTutor('+t.id+')">重新启用</button>')+'</div></div>';
   }).join('');
+}
+function closeModal(){document.getElementById('modal').classList.add('hidden');}
+function showModal(title,body){document.getElementById('modal-title').textContent=title;document.getElementById('modal-body').innerHTML=body;document.getElementById('modal').classList.remove('hidden');}
+function item(label,value){return '<div class="detail-item"><b>'+esc(label)+'</b><div>'+esc(value||'-')+'</div></div>';}
+function showParent(id){
+  const p=directoryCache.parents.find(x=>x.id===id);if(!p)return;
+  const fields=[['状态',p.request_status==='active'?'开放中':p.request_status==='closed'?'已关闭':'已移除'],['孩子年级',p.level],['科目',p.subject],['语言',p.lang],['地区',p.region],['邮编',p.postcode],['地址',p.address],['预算',p.budget],['频率',p.freq],['每次课时',p.duration],['时间',p.timeslot],['学习目标',p.goal],['老师性别要求',p.gender],['授课方式',p.mode],['老师类型',p.tutortype],['家长称呼',p.contact_name],['电话',p.contact_phone],['Email',p.contact_email],['微信',p.contact_wechat],['备注',p.notes],['创建时间',p.created_at]];
+  showModal('家长需求 #'+id,'<div class="detail-grid">'+fields.map(x=>item(x[0],x[1])).join('')+'</div>');
+}
+function showTutor(id){
+  const t=directoryCache.tutors.find(x=>x.id===id);if(!t)return;
+  const fields=[['状态',t.tutor_status==='active'?'接单中':'已移除'],['姓名',t.name],['教学范围',Array.isArray(t.scopes)?t.scopes.join('、'):t.scopes],['年级',t.level],['学历/资质',t.cred],['收费',t.rate],['性别',t.gender],['授课方式',t.mode],['语言',t.lang],['经验',t.exp],['试听',t.trial],['服务区域',Array.isArray(t.regions)?t.regions.join('、'):t.regions],['可用时间',Array.isArray(t.timeslots)?t.timeslots.join('、'):t.timeslots],['电话',t.contact_phone],['WhatsApp',t.whatsapp],['Email',t.contact_email],['个人介绍',t.bio],['创建时间',t.created_at]];
+  showModal('老师资料 #'+id,'<div class="detail-grid">'+fields.map(x=>item(x[0],x[1])).join('')+'</div>');
+}
+function showCase(id){
+  const c=cases.find(x=>x.id===id);if(!c)return;const p=c.parent_requests||{},t=c.tutor_profiles||{};
+  const statusText={new:'一方有兴趣',both_interested:'双方有兴趣',contacting:'平台沟通中',trial:'已安排试听',confirmed:'已确认成交',not_concluded:'未成交',cancelled:'已取消'}[c.status]||c.status;
+  const fields=[['案例状态',statusText],['家长',p.contact_name],['家长电话',p.contact_phone],['家长微信',p.contact_wechat],['家长Email',p.contact_email],['老师',t.name],['老师电话',t.contact_phone],['老师WhatsApp',t.whatsapp],['老师Email',t.contact_email],['双方兴趣',c.parent_interested_at&&c.tutor_interested_at?'双方均已表达兴趣':'一方已表达兴趣'],['家长兴趣时间',c.parent_interested_at],['老师兴趣时间',c.tutor_interested_at],['最近联系',c.last_contacted_at],['试听/首课日期',c.first_lesson_date],['实际课费/小时',c.hourly_rate?'S
+  const reason=prompt('移除家长需求的原因（可选）：')||'平台移除';
+  const {error}=await sb.from('parent_requests').update({request_status:'removed',removed_at:new Date().toISOString(),removed_reason:reason}).eq('id',id);
+  if(error)alert(error.message);else await loadDirectory();
+}
+async function restoreParent(id){
+  const {error}=await sb.from('parent_requests').update({request_status:'active',removed_at:null,removed_reason:null}).eq('id',id);
+  if(error)alert(error.message);else await loadDirectory();
+}
+async function removeTutor(id){
+  const reason=prompt('移除老师的原因（例如暂不接单）：')||'平台移除';
+  const {error}=await sb.from('tutor_profiles').update({tutor_status:'removed',removed_at:new Date().toISOString(),removed_reason:reason}).eq('id',id);
+  if(error)alert(error.message);else await loadDirectory();
+}
+async function restoreTutor(id){
+  const {error}=await sb.from('tutor_profiles').update({tutor_status:'active',removed_at:null,removed_reason:null}).eq('id',id);
+  if(error)alert(error.message);else await loadDirectory();
+}
+async function recalcScores(parentId,tutorId){
+  const [{data:all},{data:ints}] = await Promise.all([
+    sb.from('match_cases').select('parent_request_id,tutor_id,status'),
+    sb.from('match_interests').select('parent_request_id,tutor_id,interested_by')
+  ]);
+  const rows=all||[], interests=ints||[];
+  const ts=rows.filter(x=>x.tutor_id===tutorId),ps=rows.filter(x=>x.parent_request_id===parentId);
+  const tInterests=interests.filter(x=>x.tutor_id===tutorId && x.interested_by==='parent').length;
+  const pInterests=interests.filter(x=>x.parent_request_id===parentId && x.interested_by==='tutor').length;
+  const tConfirmed=ts.filter(x=>x.status==='confirmed').length,tNo=ts.filter(x=>x.status==='not_concluded').length,tCancel=ts.filter(x=>x.status==='cancelled').length;
+  const pConfirmed=ps.filter(x=>x.status==='confirmed').length,pNo=ps.filter(x=>x.status==='not_concluded').length,pCancel=ps.filter(x=>x.status==='cancelled').length;
+  const tScore=Math.max(0,tConfirmed*12-tNo*2-tCancel*5),pScore=Math.max(0,pConfirmed*15-pNo*2-pCancel*5);
+  const tLevel=tScore>=100?'金牌':tScore>=60?'银牌':tScore>=25?'铜牌':tScore<5&&tNo>=5?'观察':'普通';
+  const pLevel=pScore>=80?'黄质':pScore>=45?'银质':pScore>=20?'铜质':pScore<5&&pNo>=5?'观察':'普通';
+  await sb.from('tutor_internal_scores').upsert({tutor_id:tutorId,level:tLevel,recommendations:ts.length,interests:tInterests,confirmed_deals:tConfirmed,not_concluded:tNo,cancellations:tCancel,score:tScore,updated_at:new Date().toISOString()});
+  await sb.from('parent_internal_scores').upsert({parent_request_id:parentId,level:pLevel,requests:ps.length,interests:pInterests,confirmed_deals:pConfirmed,not_concluded:pNo,cancellations:pCancel,score:pScore,updated_at:new Date().toISOString()});
+}
+boot();
+</script>
+</body>
+</html>+c.hourly_rate:''],['单次课时',c.lesson_duration_hours?c.lesson_duration_hours+' 小时':''],['每周次数',c.lessons_per_week],['平台佣金',c.commission_amount?'S
+  const reason=prompt('移除家长需求的原因（可选）：')||'平台移除';
+  const {error}=await sb.from('parent_requests').update({request_status:'removed',removed_at:new Date().toISOString(),removed_reason:reason}).eq('id',id);
+  if(error)alert(error.message);else await loadDirectory();
+}
+async function restoreParent(id){
+  const {error}=await sb.from('parent_requests').update({request_status:'active',removed_at:null,removed_reason:null}).eq('id',id);
+  if(error)alert(error.message);else await loadDirectory();
+}
+async function removeTutor(id){
+  const reason=prompt('移除老师的原因（例如暂不接单）：')||'平台移除';
+  const {error}=await sb.from('tutor_profiles').update({tutor_status:'removed',removed_at:new Date().toISOString(),removed_reason:reason}).eq('id',id);
+  if(error)alert(error.message);else await loadDirectory();
+}
+async function restoreTutor(id){
+  const {error}=await sb.from('tutor_profiles').update({tutor_status:'active',removed_at:null,removed_reason:null}).eq('id',id);
+  if(error)alert(error.message);else await loadDirectory();
+}
+async function recalcScores(parentId,tutorId){
+  const [{data:all},{data:ints}] = await Promise.all([
+    sb.from('match_cases').select('parent_request_id,tutor_id,status'),
+    sb.from('match_interests').select('parent_request_id,tutor_id,interested_by')
+  ]);
+  const rows=all||[], interests=ints||[];
+  const ts=rows.filter(x=>x.tutor_id===tutorId),ps=rows.filter(x=>x.parent_request_id===parentId);
+  const tInterests=interests.filter(x=>x.tutor_id===tutorId && x.interested_by==='parent').length;
+  const pInterests=interests.filter(x=>x.parent_request_id===parentId && x.interested_by==='tutor').length;
+  const tConfirmed=ts.filter(x=>x.status==='confirmed').length,tNo=ts.filter(x=>x.status==='not_concluded').length,tCancel=ts.filter(x=>x.status==='cancelled').length;
+  const pConfirmed=ps.filter(x=>x.status==='confirmed').length,pNo=ps.filter(x=>x.status==='not_concluded').length,pCancel=ps.filter(x=>x.status==='cancelled').length;
+  const tScore=Math.max(0,tConfirmed*12-tNo*2-tCancel*5),pScore=Math.max(0,pConfirmed*15-pNo*2-pCancel*5);
+  const tLevel=tScore>=100?'金牌':tScore>=60?'银牌':tScore>=25?'铜牌':tScore<5&&tNo>=5?'观察':'普通';
+  const pLevel=pScore>=80?'黄质':pScore>=45?'银质':pScore>=20?'铜质':pScore<5&&pNo>=5?'观察':'普通';
+  await sb.from('tutor_internal_scores').upsert({tutor_id:tutorId,level:tLevel,recommendations:ts.length,interests:tInterests,confirmed_deals:tConfirmed,not_concluded:tNo,cancellations:tCancel,score:tScore,updated_at:new Date().toISOString()});
+  await sb.from('parent_internal_scores').upsert({parent_request_id:parentId,level:pLevel,requests:ps.length,interests:pInterests,confirmed_deals:pConfirmed,not_concluded:pNo,cancellations:pCancel,score:pScore,updated_at:new Date().toISOString()});
+}
+boot();
+</script>
+</body>
+</html>+c.commission_amount:''],['佣金状态',c.commission_status],['未成交原因',c.not_concluded_reason],['平台备注',c.platform_note],['创建时间',c.created_at]];
+  showModal('撮合案例 #'+id,'<div class="detail-grid">'+fields.map(x=>item(x[0],x[1])).join('')+'</div>');
 }
 async function removeParent(id){
   const reason=prompt('移除家长需求的原因（可选）：')||'平台移除';
