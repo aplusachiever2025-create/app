@@ -386,9 +386,11 @@ async function runSmartMatch(silent=false){
 }
 function filterCases(status){caseFilter=status;renderCases();}
 function whatsappLinkHtml(target,number,label){
-  const url=whatsappUrl(target,number);
-  if(!url)return '<button type="button" disabled>💬 '+esc(label)+'（无号码）</button>';
-  return '<a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer" style="display:inline-block;text-decoration:none"><button type="button">💬 '+esc(label)+'</button></a>';
+  const d=normalizeWhatsApp(number);
+  if(!d)return '<button type="button" disabled>💬 '+esc(label)+'（无号码）</button>';
+  const message=target==='parent'?'您好，这里是 SG Tutor Match，想跟进您的家教需求。':'您好，这里是 SG Tutor Match，想跟进您的家教资料与 SmartMatch。';
+  const url='https://web.whatsapp.com/send?phone='+d+'&text='+encodeURIComponent(message);
+  return '<a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer" style="display:inline-block;text-decoration:none;padding:9px 14px;border:1px solid #ddd;border-radius:10px;background:#fff;color:inherit">💬 '+esc(label)+'</a>';
 }
 function renderCases(){
   const el=document.getElementById('cases');
