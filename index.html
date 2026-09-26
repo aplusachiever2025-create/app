@@ -423,8 +423,9 @@ let db = null;
 let parentDocs = [];
 let tutorDocs = [];
 let supabaseClient = null;
-let currentParentRequestId = Number(sessionStorage.getItem('sgtm_parent_request_id') || 0) || null;
-let currentTutorId = Number(sessionStorage.getItem('sgtm_tutor_id') || 0) || null;
+// 公共前台不读取数据库中的个人记录；仅用 sessionStorage 记录“本浏览器刚刚提交过”。
+let currentParentRequestId = null;
+let currentTutorId = null;
 
 // 新加坡MOE课程大纲：各年级对应科目（简化整理，供家教平台参考）
 const MOE_SUBJECTS = {
