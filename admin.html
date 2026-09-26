@@ -25,7 +25,7 @@ main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);bo
   <p class="meta">使用 Supabase Auth 管理员账号登录。</p>
   <label>Email</label><input id="email" type="email" placeholder="admin@example.com">
   <label style="display:block;margin:10px 0 5px;">Password</label><input id="password" type="password" placeholder="••••••••">
-  <button class="primary" style="width:100%;margin-top:12px" onclick="login()">登录</button>
+  <button class="primary" style="width:100%;margin-top:12px" onclick="adminLogin()">登录</button>
   <div id="login-msg" class="meta"></div>
 </section>
 
@@ -150,7 +150,7 @@ async function openWhatsApp(target,number,caseId){
   }catch(e){console.warn('WhatsApp log failed',e);}
 }
 function msg(s){document.getElementById('login-msg').textContent=s}
-async function login(){
+async function adminLogin(){
   const email=document.getElementById('email').value.trim(),password=document.getElementById('password').value;
   if(!email||!password){msg('请输入账号和密码');return}
   const btn=document.querySelector('#login button.primary');
