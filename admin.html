@@ -304,24 +304,21 @@ function renderWorkQueue(){
   const stats=document.getElementById('work-queue-stats'),list=document.getElementById('work-queue-list');
   if(!stats||!list)return;
   const now=new Date(), today=new Date(now.toLocaleString('en-US',{timeZone:'Asia/Singapore'})), day=today.toISOString().slice(0,10);
-  const openCases=cases.filter(c=>!['confirmed','ongoing','not_concluded','cancelled'].includes(c.status));
   const overdue=followups.filter(f=>!f.completed_at&&f.next_action_at&&new Date(f.next_action_at)<now);
   const todayTasks=followups.filter(f=>!f.completed_at&&f.next_action_at&&new Date(f.next_action_at).toLocaleDateString('en-CA',{timeZone:'Asia/Singapore'})===day);
-  const unmatched=cases.filter(c=>c.status==='matched');
-  const trial=cases.filter(c=>c.status==='trial');
-  const confirm=cases.filter(c=>c.status==='pending_confirmation');
-  stats.innerHTML='<div class="stat"><b>🔴 '+overdue.length+'</b><span>已逾期</span></div><div class="stat"><b>🟠 '+todayTasks.length+'</b><span>今天要做</span></div><div class="stat"><b>🎯 '+unmatched.length+'</b><span>待开始沟通</span></div><div class="stat"><b>🟡 '+trial.length+'</b><span>试听中</span></div><div class="stat"><b>🔵 '+confirm.length+'</b><span>待确认成交</span></div>';
+  const matched=cases.filter(c=>c.status==='matched'), trial=cases.filter(c=>c.status==='trial'), confirm=cases.filter(c=>c.status==='pending_confirmation');
+  stats.innerHTML='<div class="stat"><b>🔴 '+overdue.length+'</b><span>已逾期</span></div><div class="stat"><b>🟠 '+todayTasks.length+'</b><span>今天要做</span></div><div class="stat"><b>🎯 '+matched.length+'</b><span>待开始沟通</span></div><div class="stat"><b>🟡 '+trial.length+'</b><span>试听后处理</span></div><div class="stat"><b>🔵 '+confirm.length+'</b><span>待确认成交</span></div>';
   const rows=[];
-  overdue.forEach(f=>rows.push({priority:0,title:'逾期跟进',color:'🔴',caseId:f.match_case_id,sub:f.next_action||'请立即跟进',time:f.next_action_at,note:f.note}));
-  todayTasks.filter(f=>!overdue.some(o=>o.id===f.id)).forEach(f=>rows.push({priority:1,title:'今天跟进',color:'🟠',caseId:f.match_case_id,sub:f.next_action||'今天处理',time:f.next_action_at,note:f.note}));
-  unmatched.forEach(c=>rows.push({priority:2,title:'开始沟通',color:'🎯',caseId:c.id,sub:'SmartMatch '+(c.match_score!=null?c.match_score+'/100':'已配对'),time:c.created_at,note:(c.match_reasons||[]).join(' · ')}));
-  trial.forEach(c=>rows.push({priority:3,title:'试听后跟进',color:'🟡',caseId:c.id,sub:'确认试听反馈并推进成交',time:c.last_contacted_at||c.created_at,note:''}));
-  confirm.forEach(c=>rows.push({priority:4,title:'等待成交确认',color:'🔵',caseId:c.id,sub:'联系双方确认是否成交',time:c.last_contacted_at||c.created_at,note:''}));
+  overdue.forEach(f=>rows.push({priority:0,title:'逾期跟进',color:'🔴',action:'立即跟进',caseId:f.match_case_id,sub:f.next_action||'请立即跟进',time:f.next_action_at,note:f.note}));
+  todayTasks.filter(f=>!overdue.some(o=>o.id===f.id)).forEach(f=>rows.push({priority:1,title:'今天跟进',color:'🟠',action:'完成今日跟进',caseId:f.match_case_id,sub:f.next_action||'今天处理',time:f.next_action_at,note:f.note}));
+  matched.forEach(c=>rows.push({priority:2,title:'开始沟通',color:'🎯',action:'联系双方',caseId:c.id,sub:'SmartMatch '+(c.match_score!=null?c.match_score+'/100':'已配对'),time:c.created_at,note:(c.match_reasons||[]).join(' · ')}));
+  trial.forEach(c=>rows.push({priority:3,title:'试听后处理',color:'🟡',action:'记录试听结果',caseId:c.id,sub:'确认试听反馈并推进成交',time:c.last_contacted_at||c.created_at,note:''}));
+  confirm.forEach(c=>rows.push({priority:4,title:'成交确认',color:'🔵',action:'确认是否成交',caseId:c.id,sub:'联系双方确认成交结果',time:c.last_contacted_at||c.created_at,note:''}));
   if(!rows.length){list.innerHTML='<div class="meta">🎉 当前没有需要立即处理的运营事项。</div>';return}
-  rows.sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time));
+  rows.sort((x,y)=>x.priority-y.priority||new Date(x.time)-new Date(y.time));
   list.innerHTML=rows.slice(0,25).map(r=>{
     const c=cases.find(x=>x.id===r.caseId),p=c?.parent_requests||{},t=c?.tutor_profiles||{};
-    return '<div class="case"><div class="case-head"><div><b>'+r.color+' '+esc(r.title)+'</b><div class="meta">'+esc(p.contact_name||'-')+' ↔ '+esc(t.name||'待配对')+' · '+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</div></div><button onclick="showCase('+r.caseId+')">进入处理</button></div><div class="meta">'+esc(r.sub)+(r.note?' · '+esc(r.note):'')+'</div><div class="actions"><button onclick="showCase('+r.caseId+')">查看案例</button><button onclick="openCaseWhatsApp('+r.caseId+",&quot;parent&quot;)">💬 联系家长</button><button onclick="openCaseWhatsApp('+r.caseId+",&quot;tutor&quot;)">💬 联系老师</button></div></div>';
+    return '<div class="case"><div class="case-head"><div><b>'+r.color+' '+esc(r.title)+'</b><div class="meta">'+esc(p.contact_name||'-')+' ↔ '+esc(t.name||'待配对')+' · '+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</div></div><span class="badge warn">'+esc(r.action)+'</span></div><div class="meta">'+esc(r.sub)+(r.note?' · '+esc(r.note):'')+'</div><div class="actions"><button onclick="showCase('+r.caseId+')">进入处理</button><button onclick="openCaseWhatsApp('+r.caseId+",&quot;parent&quot;)">💬 联系家长</button><button onclick="openCaseWhatsApp('+r.caseId+",&quot;tutor&quot;)">💬 联系老师</button></div></div>';
   }).join('');
 }
 function renderStats(){
