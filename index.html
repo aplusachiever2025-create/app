@@ -756,7 +756,8 @@ async function submitParent(){
       duration: req.duration, timeslot: req.timeslot, goal: req.goal, gender: req.gender,
       mode: req.mode, tutortype: req.tutortype, notes: document.getElementById('p-notes').value.trim(),
       contact_name: contactName, contact_phone: contactPhone,
-      contact_email: document.getElementById('p-contact-email').value.trim()
+      contact_email: document.getElementById('p-contact-email').value.trim(),
+      contact_wechat: document.getElementById('p-contact-wechat').value.trim()
     }).select('id').single();
     if(error) throw error;
     req.id = data.id;
@@ -769,6 +770,7 @@ async function submitParent(){
     document.getElementById('p-contact-name').value = '';
     document.getElementById('p-contact-phone').value = '';
     document.getElementById('p-contact-email').value = '';
+    document.getElementById('p-contact-wechat').value = '';
     toggleParentCustomSubject();
     document.getElementById('p-region-hint').textContent = '';
     await refreshSupabaseData();
@@ -833,6 +835,9 @@ function normalizeWhatsApp(value){
 
 async function parentInterest(tutorId){
   if(!supabaseClient || !currentParentRequestId){ toast('请先发布家教需求'); return; }
+  const { data: parentState, error: stateError } = await supabaseClient.from('parent_requests').select('request_status').eq('id', currentParentRequestId).maybeSingle();
+  if(stateError || !parentState){ toast('找不到这份家长需求'); return; }
+  if(parentState.request_status !== 'active'){ toast('这份家长需求已经关闭，不能再发起新的撮合'); return; }
   const { error } = await supabaseClient.from('match_interests').insert({
     parent_request_id: currentParentRequestId,
     tutor_id: tutorId,
@@ -844,6 +849,11 @@ async function parentInterest(tutorId){
 
 async function tutorInterest(parentRequestId){
   if(!supabaseClient || !currentTutorId){ toast('请先提交老师资料'); return; }
+  const { data: tutorState, error: tutorStateError } = await supabaseClient.from('tutor_profiles').select('tutor_status').eq('id', currentTutorId).maybeSingle();
+  if(tutorStateError || !tutorState || tutorState.tutor_status !== 'active'){ toast('老师资料当前未开放接单'); return; }
+  const { data: parentState, error: parentStateError } = await supabaseClient.from('parent_requests').select('request_status').eq('id', parentRequestId).maybeSingle();
+  if(parentStateError || !parentState){ toast('找不到这份家长需求'); return; }
+  if(parentState.request_status !== 'active'){ toast('这份家长需求已经关闭'); return; }
   const { error } = await supabaseClient.from('match_interests').insert({
     parent_request_id: parentRequestId,
     tutor_id: currentTutorId,
