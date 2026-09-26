@@ -381,6 +381,18 @@ button.primary{
           </select>
         </div>
       </div>
+      <label>收费范围筛选</label>
+      <select id="f-rate">
+        <option value="">不限</option>
+        <option>$20-30</option>
+        <option>$30-40</option>
+        <option>$40-60</option>
+        <option>$60-80</option>
+        <option>$80-100</option>
+        <option>$100-120</option>
+        <option>$120-150</option>
+        <option>$150+</option>
+      </select>
       <label>科目筛选</label>
       <select id="f-subject">
         <option value="">不限</option>
@@ -752,10 +764,12 @@ function renderTutorBrowse(){
   let list = tutorDocs;
   const g = document.getElementById('f-gender').value;
   const m = document.getElementById('f-mode').value;
+  const rate = document.getElementById('f-rate').value;
   const s = document.getElementById('f-subject').value;
   const r = document.getElementById('f-region').value;
   if(g) list = list.filter(t => t.gender === g);
   if(m) list = list.filter(t => t.mode === m);
+  if(rate) list = list.filter(t => t.rate === rate);
   if(s) list = list.filter(t => (t.scopes||[]).some(x => x.subject === s || x.scopeType === 'ALL_SUBJECTS'));
   if(r) list = list.filter(t => (t.regions||[]).includes(r));
   const el = document.getElementById('tutor-browse-list');
@@ -764,6 +778,7 @@ function renderTutorBrowse(){
 }
 document.getElementById('f-gender').addEventListener('change', renderTutorBrowse);
 document.getElementById('f-mode').addEventListener('change', renderTutorBrowse);
+document.getElementById('f-rate').addEventListener('change', renderTutorBrowse);
 document.getElementById('f-region').addEventListener('change', renderTutorBrowse);
 document.getElementById('f-subject').addEventListener('change', renderTutorBrowse);
 
