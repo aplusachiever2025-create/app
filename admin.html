@@ -528,11 +528,17 @@ async function loadCaseTimeline(id){
   if(error){el.innerHTML='<div class="meta">时间线读取失败：'+esc(error.message)+'</div>';return}
   const rows=data||[];
   if(!rows.length){el.innerHTML='<div class="meta">还没有记录。第一次联系家长或老师后，就在这里留下记录。</div>';return}
+  const adminIds=[...new Set(rows.map(n=>n.admin_user_id).filter(Boolean))];
+  let adminMap={};
+  if(adminIds.length){
+    const {data:admins}=await sb.from('platform_admins').select('user_id,display_name').in('user_id',adminIds);
+    (admins||[]).forEach(a=>{adminMap[a.user_id]=a.display_name});
+  }
   el.innerHTML=rows.map(n=>'<div style="border-left:3px solid var(--line);padding:10px 0 10px 14px;margin:10px 0">'+
     '<div><b>'+esc(timelineWhoText(n.contact_target))+'</b> <span class="badge">'+esc(timelineTypeText(n.note_type))+'</span> <span class="meta">'+esc(fmtTime(n.created_at))+'</span></div>'+
     '<div style="margin-top:5px;white-space:pre-wrap">'+esc(n.note)+'</div>'+
     (n.next_action?'<div class="meta" style="margin-top:5px">➡ 下一步：'+esc(n.next_action)+(n.next_action_at?' · '+esc(fmtTime(n.next_action_at)):'')+'</div>':'')+
-    (n.platform_admins?.display_name?'<div class="meta">记录人：'+esc(n.platform_admins.display_name)+'</div>':'')+
+    (adminMap[n.admin_user_id]?'<div class="meta">记录人：'+esc(adminMap[n.admin_user_id])+'</div>':'')+
     '</div>').join('');
 }
 async function saveCaseTimeline(id){
