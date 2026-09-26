@@ -51,22 +51,25 @@ main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);bo
   </div>
   <div class="note">佣金规则：确认成交时自动计算 = 实际每小时课费 × 单次课时 × 2。内部等级只用于平台运营，不会显示给家长或老师。</div>
   <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-      <h2 style="margin:0">撮合案例</h2><div class="actions" style="margin-top:0"><button onclick="runSmartMatch()">🎯 运行 SmartMatch</button><button onclick="loadCases()">刷新</button></div>
+    <div onclick="toggleAdminSection('cases')" style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer" title="点击展开/收起">
+      <div style="display:flex;align-items:center;gap:10px"><span id="arrow-cases" style="font-size:18px">▶</span><h2 style="margin:0">撮合案例</h2></div>
+      <div class="actions" style="margin-top:0" onclick="event.stopPropagation()"><button onclick="runSmartMatch()">🎯 运行 SmartMatch</button><button onclick="loadCases()">刷新</button></div>
     </div>
-    <div id="cases"></div>
+    <div id="section-cases" class="hidden" style="margin-top:12px"><div id="cases"></div></div>
   </div>
   <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-      <h2 style="margin:0">家长需求管理</h2><div class="actions" style="margin-top:0"><button onclick="showRemovedDirectory=!showRemovedDirectory;loadDirectory()">显示/隐藏已移除</button><button onclick="loadDirectory()">刷新</button></div>
+    <div onclick="toggleAdminSection('parents')" style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer" title="点击展开/收起">
+      <div style="display:flex;align-items:center;gap:10px"><span id="arrow-parents" style="font-size:18px">▶</span><h2 style="margin:0">家长需求管理</h2></div>
+      <div class="actions" style="margin-top:0" onclick="event.stopPropagation()"><button onclick="showRemovedDirectory=!showRemovedDirectory;loadDirectory()">显示/隐藏已移除</button><button onclick="loadDirectory()">刷新</button></div>
     </div>
-    <div id="parent-directory"></div>
+    <div id="section-parents" class="hidden" style="margin-top:12px"><div id="parent-directory"></div></div>
   </div>
   <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-      <h2 style="margin:0">老师资料管理</h2><div class="actions" style="margin-top:0"><button onclick="showRemovedDirectory=!showRemovedDirectory;loadDirectory()">显示/隐藏已移除</button><button onclick="loadDirectory()">刷新</button></div>
+    <div onclick="toggleAdminSection('tutors')" style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer" title="点击展开/收起">
+      <div style="display:flex;align-items:center;gap:10px"><span id="arrow-tutors" style="font-size:18px">▶</span><h2 style="margin:0">老师资料管理</h2></div>
+      <div class="actions" style="margin-top:0" onclick="event.stopPropagation()"><button onclick="showRemovedDirectory=!showRemovedDirectory;loadDirectory()">显示/隐藏已移除</button><button onclick="loadDirectory()">刷新</button></div>
     </div>
-    <div id="tutor-directory"></div>
+    <div id="section-tutors" class="hidden" style="margin-top:12px"><div id="tutor-directory"></div></div>
   </div>
 </section>
 </main>
@@ -383,6 +386,16 @@ async function runSmartMatch(silent=false){
   }finally{
     if(btn){btn.disabled=false;btn.textContent='🎯 运行 SmartMatch'}
   }
+}
+const adminSectionState={cases:false,parents:false,tutors:false};
+function toggleAdminSection(name){
+  const names=['cases','parents','tutors'];
+  if(!names.includes(name))return;
+  const content=document.getElementById('section-'+name);
+  const arrow=document.getElementById('arrow-'+name);
+  const open=content.classList.toggle('hidden')===false;
+  adminSectionState[name]=open;
+  if(arrow)arrow.textContent=open?'▼':'▶';
 }
 function filterCases(status){caseFilter=status;renderCases();}
 function whatsappUrl(target,number){
