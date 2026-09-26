@@ -41,6 +41,18 @@ main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);bo
     </div>
     <div id="cases"></div>
   </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <h2 style="margin:0">家长需求管理</h2><button onclick="loadDirectory()">刷新</button>
+    </div>
+    <div id="parent-directory"></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <h2 style="margin:0">老师资料管理</h2><button onclick="loadDirectory()">刷新</button>
+    </div>
+    <div id="tutor-directory"></div>
+  </div>
 </section>
 </main>
 <script>
@@ -67,9 +79,10 @@ async function boot(){
   document.getElementById('login').classList.add('hidden');document.getElementById('dashboard').classList.remove('hidden');
   document.getElementById('who').textContent='管理员：'+(admin.display_name||user.email);
   await loadCases();
+  await loadDirectory();
 }
 async function loadCases(){
-  const {data,error}=await sb.from('match_cases').select('*,parent_requests(id,level,subject,region,budget,freq,duration,timeslot,goal,contact_name,contact_phone,contact_email),tutor_profiles(id,name,rate,cred,whatsapp)').order('created_at',{ascending:false});
+  const {data,error}=await sb.from('match_cases').select('*,parent_requests(id,level,subject,region,budget,freq,duration,timeslot,goal,contact_name,contact_phone,contact_email),tutor_profiles(id,name,rate,cred,whatsapp,contact_email,contact_phone,tutor_status)').order('created_at',{ascending:false});
   if(error){document.getElementById('cases').innerHTML='<div class="meta">读取失败：'+esc(error.message)+'</div>';return}
   cases=data||[];renderStats();renderCases();
 }
@@ -86,7 +99,7 @@ function renderCases(){
     const form='<div class="formgrid"><div><label>实际课费/小时</label><input id="rate-'+c.id+'" type="number" min="0" step="0.5" value="'+(c.hourly_rate??'')+'" placeholder="50"></div><div><label>单次课时</label><input id="duration-'+c.id+'" type="number" min="0.5" step="0.5" value="'+(c.lesson_duration_hours??'')+'" placeholder="2"></div><div><label>每周次数</label><input id="freq-'+c.id+'" type="number" min="0.5" step="0.5" value="'+(c.lessons_per_week??'')+'" placeholder="2"></div><div><label>首次上课日期</label><input id="date-'+c.id+'" type="date" value="'+(c.first_lesson_date||'')+'"></div></div>';
     const reasons=['家长取消','老师取消','预算不合适','时间不合适','地区不合适','双方沟通后不合适','已自行找到老师','其他'];
     const reasonSelect='<select id="reason-'+c.id+'"><option value="">选择未成交原因</option>'+reasons.map(x=>'<option '+(c.not_concluded_reason===x?'selected':'')+'>'+x+'</option>').join('')+'</select>';
-    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">家长：'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · 老师：'+esc(t.name||'-')+'</div></div><span class="badge '+(c.status==='confirmed'?'ok':c.status==='not_concluded'?'warn':'')+'">'+esc(statusText)+'</span></div><div class="meta">地区：'+esc(p.region||'-')+' · 家长预算：'+esc(p.budget||'-')+' · '+esc(p.freq||'-')+' · 每次'+esc(p.duration||'-')+' · '+esc(p.timeslot||'-')+'</div>'+form+'<div class="meta">预计平台佣金：S$'+(c.commission_amount?Number(c.commission_amount).toFixed(2):'—')+'</div><div class="actions"><button onclick="setStatus('+c.id+',\'contacting\')">平台沟通中</button><button onclick="setStatus('+c.id+',\'trial\')">安排试听</button><button class="primary" onclick="confirmDeal('+c.id+')">✓ 确认成交</button>'+reasonSelect+'<button class="danger" onclick="notConcluded('+c.id+')">确认未成交</button></div></div>';
+    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">家长：'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · '+esc(p.contact_email||'-')+' · 老师：'+esc(t.name||'-')+' · '+esc(t.contact_phone||'-')+' · '+esc(t.contact_email||'-')+'</div></div><span class="badge '+(c.status==='confirmed'?'ok':c.status==='not_concluded'?'warn':'')+'">'+esc(statusText)+'</span></div><div class="meta">地区：'+esc(p.region||'-')+' · 家长预算：'+esc(p.budget||'-')+' · '+esc(p.freq||'-')+' · 每次'+esc(p.duration||'-')+' · '+esc(p.timeslot||'-')+'</div>'+form+'<div class="meta">预计平台佣金：S$'+(c.commission_amount?Number(c.commission_amount).toFixed(2):'—')+'</div><div class="actions"><button onclick="setStatus('+c.id+',\'contacting\')">平台沟通中</button><button onclick="setStatus('+c.id+',\'trial\')">安排试听</button><button class="primary" onclick="confirmDeal('+c.id+')">✓ 确认成交</button>'+reasonSelect+'<button class="danger" onclick="notConcluded('+c.id+')">确认未成交</button></div></div>';
   }).join('');
 }
 async function setStatus(id,status){
@@ -103,15 +116,62 @@ async function confirmDeal(id){
   const {data:{user}}=await sb.auth.getUser();
   const {error}=await sb.from('match_cases').update({status:'confirmed',confirmed_at:new Date().toISOString(),confirmed_by:user.id,hourly_rate:rate,lesson_duration_hours:duration,lessons_per_week:freq||null,first_lesson_date:date,commission_amount:commission,commission_status:'pending'}).eq('id',id);
   if(error){alert(error.message);return}
+  const {error:closeError}=await sb.from('parent_requests').update({request_status:'closed'}).eq('id',c.parent_request_id);
+  if(closeError){alert('成交已记录，但家长需求关闭失败：'+closeError.message);return}
   await recalcScores(c.parent_request_id,c.tutor_id);
   await loadCases();
+  await loadDirectory();
 }
 async function notConcluded(id){
   const reason=document.getElementById('reason-'+id).value;if(!reason){alert('请选择未成交原因');return}
   const c=cases.find(x=>x.id===id);
   const {error}=await sb.from('match_cases').update({status:'not_concluded',not_concluded_reason:reason}).eq('id',id);
   if(error){alert(error.message);return}
-  await recalcScores(c.parent_request_id,c.tutor_id);await loadCases();
+  await recalcScores(c.parent_request_id,c.tutor_id);await loadCases();await loadDirectory();
+}
+async function loadDirectory(){
+  const [parents,tutors]=await Promise.all([
+    sb.from('parent_requests').select('id,level,subject,region,budget,contact_name,contact_phone,contact_email,request_status,removed_at,removed_reason,created_at').order('created_at',{ascending:false}),
+    sb.from('tutor_profiles').select('id,name,rate,cred,contact_phone,contact_email,whatsapp,tutor_status,removed_at,removed_reason,created_at').order('created_at',{ascending:false})
+  ]);
+  if(parents.error){document.getElementById('parent-directory').innerHTML='<div class="meta">读取家长需求失败：'+esc(parents.error.message)+'</div>'}
+  else renderParentDirectory(parents.data||[]);
+  if(tutors.error){document.getElementById('tutor-directory').innerHTML='<div class="meta">读取老师资料失败：'+esc(tutors.error.message)+'</div>'}
+  else renderTutorDirectory(tutors.data||[]);
+}
+function renderParentDirectory(rows){
+  const el=document.getElementById('parent-directory');
+  if(!rows.length){el.innerHTML='<div class="meta">暂无家长需求。</div>';return}
+  el.innerHTML=rows.map(p=>{
+    const active=p.request_status==='active';
+    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · '+esc(p.contact_email||'-')+' · '+esc(p.region||'-')+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'开放中':p.request_status==='closed'?'已关闭':'已移除')+'</span></div><div class="meta">预算：'+esc(p.budget||'-')+' · 创建：'+esc(p.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeParent('+p.id+')">移除需求</button>':'<button onclick="restoreParent('+p.id+')">重新开放</button>')+'</div></div>';
+  }).join('');
+}
+function renderTutorDirectory(rows){
+  const el=document.getElementById('tutor-directory');
+  if(!rows.length){el.innerHTML='<div class="meta">暂无老师资料。</div>';return}
+  el.innerHTML=rows.map(t=>{
+    const active=t.tutor_status==='active';
+    return '<div class="case"><div class="case-head"><div><b>'+esc(t.name||'-')+'</b><div class="meta">'+esc(t.cred||'-')+' · '+esc(t.rate||'-')+' · '+esc(t.contact_phone||'-')+' · '+esc(t.contact_email||'-')+' · WhatsApp '+esc(t.whatsapp||'-')+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'接单中':'已移除')+'</span></div><div class="meta">创建：'+esc(t.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeTutor('+t.id+')">移除老师</button>':'<button onclick="restoreTutor('+t.id+')">重新启用</button>')+'</div></div>';
+  }).join('');
+}
+async function removeParent(id){
+  const reason=prompt('移除家长需求的原因（可选）：')||'平台移除';
+  const {error}=await sb.from('parent_requests').update({request_status:'removed',removed_at:new Date().toISOString(),removed_reason:reason}).eq('id',id);
+  if(error)alert(error.message);else await loadDirectory();
+}
+async function restoreParent(id){
+  const {error}=await sb.from('parent_requests').update({request_status:'active',removed_at:null,removed_reason:null}).eq('id',id);
+  if(error)alert(error.message);else await loadDirectory();
+}
+async function removeTutor(id){
+  const reason=prompt('移除老师的原因（例如暂不接单）：')||'平台移除';
+  const {error}=await sb.from('tutor_profiles').update({tutor_status:'removed',removed_at:new Date().toISOString(),removed_reason:reason}).eq('id',id);
+  if(error)alert(error.message);else await loadDirectory();
+}
+async function restoreTutor(id){
+  const {error}=await sb.from('tutor_profiles').update({tutor_status:'active',removed_at:null,removed_reason:null}).eq('id',id);
+  if(error)alert(error.message);else await loadDirectory();
 }
 async function recalcScores(parentId,tutorId){
   const [{data:all},{data:ints}] = await Promise.all([
