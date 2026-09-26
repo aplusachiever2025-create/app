@@ -127,7 +127,7 @@ function openTutorWhatsApp(tutorId){
   if(!t){alert('找不到这个老师资料');return;}
   openWhatsApp('tutor',t.whatsapp||t.contact_phone,null);
 }
-async async function openWhatsApp(target,number,caseId){
+async function openWhatsApp(target,number,caseId){
   const d=normalizeWhatsApp(number);
   if(!d){alert('没有可用的 WhatsApp 号码');return;}
   const text=encodeURIComponent(target==='parent'?'您好，这里是 SG Tutor Match，想跟进您的家教需求。':'您好，这里是 SG Tutor Match，想跟进您的家教资料与 SmartMatch。');
@@ -367,7 +367,7 @@ function renderParentDirectory(rows){
   if(!rows.length){el.innerHTML='<div class="meta">暂无家长需求。</div>';return}
   el.innerHTML=rows.map(p=>{
     const active=p.request_status==='active';
-    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · '+esc(p.contact_email||'-')+' · 微信 '+esc(p.contact_wechat||'-')+' · WhatsApp '+esc(formatWhatsApp(p.contact_whatsapp))+' · '+esc(p.region||'-')+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'开放中':p.request_status==='closed'?'已关闭':'已移除')+'</span></div><div class="actions"><button onclick="openParentWhatsApp(p.id)">💬 WhatsApp 家长</button><button onclick="showParent('+p.id+')">查看详情</button></div><div class="meta">预算：'+esc(p.budget||'-')+' · 创建：'+esc(p.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeParent('+p.id+')">移除需求</button>':'<button onclick="restoreParent('+p.id+')">重新开放</button>')+'</div></div>';
+    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · '+esc(p.contact_email||'-')+' · 微信 '+esc(p.contact_wechat||'-')+' · WhatsApp '+esc(formatWhatsApp(p.contact_whatsapp))+' · '+esc(p.region||'-')+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'开放中':p.request_status==='closed'?'已关闭':'已移除')+'</span></div><div class="actions"><button onclick="openParentWhatsApp('p.id')">💬 WhatsApp 家长</button><button onclick="showParent('+p.id+')">查看详情</button></div><div class="meta">预算：'+esc(p.budget||'-')+' · 创建：'+esc(p.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeParent('+p.id+')">移除需求</button>':'<button onclick="restoreParent('+p.id+')">重新开放</button>')+'</div></div>';
   }).join('');
 }
 async function openResume(path){
@@ -386,7 +386,7 @@ function renderTutorDirectory(rows){
   if(!rows.length){el.innerHTML='<div class="meta">暂无老师资料。</div>';return}
   el.innerHTML=rows.map(t=>{
     const active=t.tutor_status==='active';
-    return '<div class="case"><div class="case-head"><div><b>'+esc(t.name||'-')+'</b><div class="meta">'+esc(t.cred||'-')+' · '+esc(t.rate||'-')+' · '+esc(t.contact_phone||'-')+' · '+esc(t.contact_email||'-')+' · WhatsApp '+esc(formatWhatsApp(t.whatsapp))+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'接单中':'已移除')+'</span></div><div class="actions"><button onclick="openTutorWhatsApp(t.id)">💬 WhatsApp</button>'+(t.resume_path?'<button onclick="openResume(\''+esc(t.resume_path).replace(/'/g,"\\'")+'\')">📄 打开履历</button>':'<span class="badge warn">📄 未上传履历</span>')+'</div><div class="meta">履历：'+esc(t.resume_name||'未上传')+'</div><div class="meta">创建：'+esc(t.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeTutor('+t.id+')">移除老师</button>':'<button onclick="restoreTutor('+t.id+')">重新启用</button>')+'</div></div>';
+    return '<div class="case"><div class="case-head"><div><b>'+esc(t.name||'-')+'</b><div class="meta">'+esc(t.cred||'-')+' · '+esc(t.rate||'-')+' · '+esc(t.contact_phone||'-')+' · '+esc(t.contact_email||'-')+' · WhatsApp '+esc(formatWhatsApp(t.whatsapp))+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'接单中':'已移除')+'</span></div><div class="actions"><button onclick="openTutorWhatsApp('t.id')">💬 WhatsApp</button>'+(t.resume_path?'<button onclick="openResume(\''+esc(t.resume_path).replace(/'/g,"\\'")+'\')">📄 打开履历</button>':'<span class="badge warn">📄 未上传履历</span>')+'</div><div class="meta">履历：'+esc(t.resume_name||'未上传')+'</div><div class="meta">创建：'+esc(t.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeTutor('+t.id+')">移除老师</button>':'<button onclick="restoreTutor('+t.id+')">重新启用</button>')+'</div></div>';
   }).join('');
 }
 function closeModal(){document.getElementById('modal').classList.add('hidden');}
