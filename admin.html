@@ -351,7 +351,14 @@ async function runSmartMatch(silent=false){
     await loadCases(); await loadOpsOverview();
   }catch(e){
     console.error('SmartMatch error',e);
-    alert('SmartMatch 运行失败：'+(e?.message||e));
+    let detail=e?.message||String(e);
+    try{
+      if(e?.context?.json){
+        const body=await e.context.json();
+        if(body?.error) detail=body.error;
+      }
+    }catch(_){}
+    if(!silent) alert('SmartMatch 运行失败：'+detail);
   }finally{
     if(btn){btn.disabled=false;btn.textContent='🎯 运行 SmartMatch'}
   }
