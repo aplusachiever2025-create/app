@@ -163,6 +163,32 @@ drop trigger if exists match_cases_updated_at on public.match_cases;
 create trigger match_cases_updated_at before update on public.match_cases
 for each row execute function public.set_match_case_updated_at();
 
+create or replace function public.validate_match_interest()
+returns trigger language plpgsql security definer set search_path = public
+as $
+begin
+  if not exists (
+    select 1 from public.parent_requests
+    where id = new.parent_request_id and request_status = 'active'
+  ) then
+    raise exception 'parent request is not active';
+  end if;
+
+  if not exists (
+    select 1 from public.tutor_profiles
+    where id = new.tutor_id and tutor_status = 'active'
+  ) then
+    raise exception 'tutor profile is not active';
+  end if;
+
+  return new;
+end;
+$;
+
+drop trigger if exists validate_match_interest on public.match_interests;
+create trigger validate_match_interest before insert on public.match_interests
+for each row execute function public.validate_match_interest();
+
 create or replace function public.register_match_interest()
 returns trigger language plpgsql security definer set search_path = public
 as $$
