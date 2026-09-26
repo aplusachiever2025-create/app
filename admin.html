@@ -381,12 +381,30 @@ async function setTutorReview(id,status){
   if(error){alert('审核更新失败：'+error.message);return}
   await loadDirectory();
 }
+function tutorScopeText(scopes){
+  if(!Array.isArray(scopes)||!scopes.length)return '未填写';
+  return scopes.map(s=>{
+    if(!s)return '';
+    const stage=s.stage||'';
+    const range=s.from&&s.to?(s.from===s.to?s.from:s.from+'–'+s.to):'';
+    const subject=s.scopeType==='ALL_SUBJECTS'?'全部科目':(s.subject||s.customSubject||'其他');
+    return [stage,range,subject].filter(Boolean).join(' · ');
+  }).filter(Boolean).join('；');
+}
+function tutorListSummary(t){
+  const scopes=tutorScopeText(t.scopes);
+  const regions=Array.isArray(t.regions)&&t.regions.length?t.regions.join('、'):'未填写';
+  const times=Array.isArray(t.timeslots)&&t.timeslots.length?t.timeslots.join('、'):'未填写';
+  return '教学：'+scopes+' · 地区：'+regions+' · 时间：'+times+' · 方式：'+(t.mode||'-')+' · 语言：'+(t.lang||'-')+' · 经验：'+(t.exp||'-')+' · 试听：'+(t.trial||'-');
+}
 function renderTutorDirectory(rows){
   const el=document.getElementById('tutor-directory');
   if(!rows.length){el.innerHTML='<div class="meta">暂无老师资料。</div>';return}
   el.innerHTML=rows.map(t=>{
     const active=t.tutor_status==='active';
-    return '<div class="case"><div class="case-head"><div><b>'+esc(t.name||'-')+'</b><div class="meta">'+esc(t.cred||'-')+' · '+esc(t.rate||'-')+' · '+esc(t.contact_phone||'-')+' · '+esc(t.contact_email||'-')+' · WhatsApp '+esc(formatWhatsApp(t.whatsapp))+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'接单中':'已移除')+'</span></div><div class="actions"><button onclick="openTutorWhatsApp('+t.id+')">💬 WhatsApp</button>'+(t.resume_path?'<button onclick="openResume(\''+esc(t.resume_path).replace(/'/g,"\\'")+'\')">📄 打开履历</button>':'<span class="badge warn">📄 未上传履历</span>')+'</div><div class="meta">履历：'+esc(t.resume_name||'未上传')+'</div><div class="meta">创建：'+esc(t.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeTutor('+t.id+')">移除老师</button>':'<button onclick="restoreTutor('+t.id+')">重新启用</button>')+'</div></div>';
+    const review=t.review_status||'pending';
+    const reviewText=review==='verified'?'审核通过':review==='rejected'?'审核不通过':'待审核';
+    return '<div class="case"><div class="case-head"><div><b>'+esc(t.name||'-')+'</b><div class="meta">ID：'+esc(t.public_id||('TU-'+t.id))+' · '+esc(t.cred||'未填写资质')+' · '+esc(t.rate||'未填写收费')+'</div><div class="meta">'+esc(tutorListSummary(t))+'</div><div class="meta">电话：'+esc(t.contact_phone||'-')+' · WhatsApp '+esc(formatWhatsApp(t.whatsapp))+' · Email：'+esc(t.contact_email||'-')+'</div></div><div class="actions" style="margin-top:0"><span class="badge '+(active?'ok':'warn')+'">'+(active?'接单中':'已移除')+'</span><span class="badge '+(review==='verified'?'ok':'warn')+'">'+reviewText+'</span></div></div><div class="meta">履历：'+esc(t.resume_name||'未上传')+' · 创建：'+esc(t.created_at||'-')+'</div><div class="actions"><button onclick="showTutor('+t.id+')">查看完整资料</button><button onclick="openTutorWhatsApp('+t.id+')">💬 WhatsApp</button>'+(t.resume_path?'<button onclick="openResume(\''+esc(t.resume_path).replace(/'/g,"\\'")+'\')">📄 打开履历</button>':'<span class="badge warn">📄 未上传履历</span>')+(review!=='verified'?'<button class="primary" onclick="setTutorReview('+t.id+',\'verified\')">✓ 审核通过</button>':'<button onclick="setTutorReview('+t.id+',\'pending\')">改为待审核</button>')+(active?'<button class="danger" onclick="removeTutor('+t.id+')">移除老师</button>':'<button onclick="restoreTutor('+t.id+')">重新启用</button>')+'</div></div>';
   }).join('');
 }
 function closeModal(){document.getElementById('modal').classList.add('hidden');}
