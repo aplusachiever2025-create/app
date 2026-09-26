@@ -89,7 +89,12 @@ function renderCases(){
     return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">家长：'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · 老师：'+esc(t.name||'-')+'</div></div><span class="badge '+(c.status==='confirmed'?'ok':c.status==='not_concluded'?'warn':'')+'">'+esc(statusText)+'</span></div><div class="meta">地区：'+esc(p.region||'-')+' · 家长预算：'+esc(p.budget||'-')+' · '+esc(p.freq||'-')+' · 每次'+esc(p.duration||'-')+' · '+esc(p.timeslot||'-')+'</div>'+form+'<div class="meta">预计平台佣金：S$'+(c.commission_amount?Number(c.commission_amount).toFixed(2):'—')+'</div><div class="actions"><button onclick="setStatus('+c.id+',\'contacting\')">平台沟通中</button><button onclick="setStatus('+c.id+',\'trial\')">安排试听</button><button class="primary" onclick="confirmDeal('+c.id+')">✓ 确认成交</button>'+reasonSelect+'<button class="danger" onclick="notConcluded('+c.id+')">确认未成交</button></div></div>';
   }).join('');
 }
-async function setStatus(id,status){const {error}=await sb.from('match_cases').update({status,last_contacted_at:status==='contacting'?new Date().toISOString():undefined}).eq('id',id);if(error)alert(error.message);else loadCases()}
+async function setStatus(id,status){
+  const patch={status};
+  if(status==='contacting') patch.last_contacted_at=new Date().toISOString();
+  const {error}=await sb.from('match_cases').update(patch).eq('id',id);
+  if(error)alert(error.message);else loadCases();
+}
 async function confirmDeal(id){
   const c=cases.find(x=>x.id===id);if(!c)return;
   const rate=Number(document.getElementById('rate-'+id).value),duration=Number(document.getElementById('duration-'+id).value),freq=Number(document.getElementById('freq-'+id).value),date=document.getElementById('date-'+id).value||null;
@@ -109,16 +114,21 @@ async function notConcluded(id){
   await recalcScores(c.parent_request_id,c.tutor_id);await loadCases();
 }
 async function recalcScores(parentId,tutorId){
-  const {data:all}=await sb.from('match_cases').select('parent_request_id,tutor_id,status');
-  const rows=all||[];
+  const [{data:all},{data:ints}] = await Promise.all([
+    sb.from('match_cases').select('parent_request_id,tutor_id,status'),
+    sb.from('match_interests').select('parent_request_id,tutor_id,interested_by')
+  ]);
+  const rows=all||[], interests=ints||[];
   const ts=rows.filter(x=>x.tutor_id===tutorId),ps=rows.filter(x=>x.parent_request_id===parentId);
+  const tInterests=interests.filter(x=>x.tutor_id===tutorId && x.interested_by==='parent').length;
+  const pInterests=interests.filter(x=>x.parent_request_id===parentId && x.interested_by==='tutor').length;
   const tConfirmed=ts.filter(x=>x.status==='confirmed').length,tNo=ts.filter(x=>x.status==='not_concluded').length,tCancel=ts.filter(x=>x.status==='cancelled').length;
   const pConfirmed=ps.filter(x=>x.status==='confirmed').length,pNo=ps.filter(x=>x.status==='not_concluded').length,pCancel=ps.filter(x=>x.status==='cancelled').length;
   const tScore=Math.max(0,tConfirmed*12-tNo*2-tCancel*5),pScore=Math.max(0,pConfirmed*15-pNo*2-pCancel*5);
   const tLevel=tScore>=100?'金牌':tScore>=60?'银牌':tScore>=25?'铜牌':tScore<5&&tNo>=5?'观察':'普通';
   const pLevel=pScore>=80?'黄质':pScore>=45?'银质':pScore>=20?'铜质':pScore<5&&pNo>=5?'观察':'普通';
-  await sb.from('tutor_internal_scores').upsert({tutor_id:tutorId,level:tLevel,recommendations:ts.length,interests:ts.length,confirmed_deals:tConfirmed,not_concluded:tNo,cancellations:tCancel,score:tScore,updated_at:new Date().toISOString()});
-  await sb.from('parent_internal_scores').upsert({parent_request_id:parentId,level:pLevel,requests:ps.length,interests:ps.length,confirmed_deals:pConfirmed,not_concluded:pNo,cancellations:pCancel,score:pScore,updated_at:new Date().toISOString()});
+  await sb.from('tutor_internal_scores').upsert({tutor_id:tutorId,level:tLevel,recommendations:ts.length,interests:tInterests,confirmed_deals:tConfirmed,not_concluded:tNo,cancellations:tCancel,score:tScore,updated_at:new Date().toISOString()});
+  await sb.from('parent_internal_scores').upsert({parent_request_id:parentId,level:pLevel,requests:ps.length,interests:pInterests,confirmed_deals:pConfirmed,not_concluded:pNo,cancellations:pCancel,score:pScore,updated_at:new Date().toISOString()});
 }
 boot();
 </script>
