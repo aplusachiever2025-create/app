@@ -127,7 +127,7 @@ function openTutorWhatsApp(tutorId){
   if(!t){alert('找不到这个老师资料');return;}
   openWhatsApp('tutor',t.whatsapp||t.contact_phone,null);
 }
-async function openWhatsApp(target,number,caseId){
+async async function openWhatsApp(target,number,caseId){
   const d=normalizeWhatsApp(number);
   if(!d){alert('没有可用的 WhatsApp 号码');return;}
   const text=encodeURIComponent(target==='parent'?'您好，这里是 SG Tutor Match，想跟进您的家教需求。':'您好，这里是 SG Tutor Match，想跟进您的家教资料与 SmartMatch。');
