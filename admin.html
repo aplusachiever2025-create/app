@@ -360,15 +360,16 @@ function filterCases(status){caseFilter=status;renderCases();}
 function renderCases(){
   const el=document.getElementById('cases');
   const visible=caseFilter==='all'?cases:cases.filter(x=>x.status===caseFilter);
-  if(!visible.length){el.innerHTML='<div class="meta">还没有撮合案例。平台运营人员建立 SmartMatch 案例后会在这里管理整个撮合流程。</div>';return}
+  if(!visible.length){el.innerHTML='<div class="meta">还没有撮合案例。SmartMatch 配对后，平台工作人员在这里联系双方并确认结果。</div>';return}
   el.innerHTML=visible.map(c=>{
     const p=c.parent_requests||{},t=c.tutor_profiles||{};
-    const statusText={new:'新需求',matched:'已配对',contacting:'平台沟通中',trial:'已安排试听',pending_confirmation:'待确认',confirmed:'已确认成交',ongoing:'进行中',not_concluded:'未成交',cancelled:'已取消'}[c.status]||c.status;
+    const statusText={new:'待处理',matched:'待沟通',contacting:'沟通中',trial:'试听中',pending_confirmation:'待确认',confirmed:'配对成功',ongoing:'进行中',not_concluded:'未成交',cancelled:'已取消'}[c.status]||c.status;
     const matchInfo=(c.match_score!=null?'<div class="meta">🎯 SmartMatch：<b>'+esc(c.match_score)+'/100</b> · '+esc(Array.isArray(c.match_reasons)?c.match_reasons.join('、'):(c.match_reasons||'自动匹配'))+'</div>':'');
     const form=matchInfo+'<div class="formgrid"><div><label>实际课费/小时</label><input id="rate-'+c.id+'" type="number" min="0" step="0.5" value="'+(c.hourly_rate??'')+'" placeholder="50"></div><div><label>单次课时</label><input id="duration-'+c.id+'" type="number" min="0.5" step="0.5" value="'+(c.lesson_duration_hours??'')+'" placeholder="2"></div><div><label>每周次数</label><input id="freq-'+c.id+'" type="number" min="0.5" step="0.5" value="'+(c.lessons_per_week??'')+'" placeholder="2"></div><div><label>首次上课日期</label><input id="date-'+c.id+'" type="date" value="'+(c.first_lesson_date||'')+'"></div></div>';
     const reasons=['家长取消','老师取消','预算不合适','时间不合适','地区不合适','双方沟通后不合适','已自行找到老师','其他'];
     const reasonSelect='<select id="reason-'+c.id+'"><option value="">选择未成交原因</option>'+reasons.map(x=>'<option '+(c.not_concluded_reason===x?'selected':'')+'>'+x+'</option>').join('')+'</select>';
-    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">家长：'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · 微信 '+esc(p.contact_wechat||'-')+' · '+esc(p.contact_email||'-')+' · 老师：'+esc(t.name||'-')+' · '+esc(t.contact_phone||'-')+' · '+esc(t.contact_email||'-')+'</div></div><div class="actions" style="margin-top:0"><span class="badge '+(c.status==='confirmed'?'ok':c.status==='not_concluded'?'warn':'')+'">'+esc(statusText)+'</span><button onclick="showCase('+c.id+')">查看详情</button></div></div><div class="actions"><button onclick="openCaseWhatsApp(c.id,&quot;parent&quot;)">💬 WhatsApp 家长</button><button onclick="openCaseWhatsApp(c.id,&quot;tutor&quot;)">💬 WhatsApp 老师</button></div><div class="meta">地区：'+esc(p.region||'-')+' · 家长预算：'+esc(p.budget||'-')+' · '+esc(p.freq||'-')+' · 每次'+esc(p.duration||'-')+' · '+esc(p.timeslot||'-')+'</div>'+form+'<div class="meta">预计平台佣金：S$'+(c.commission_amount?Number(c.commission_amount).toFixed(2):'—')+'</div><div class="actions"><button onclick="setStatus('+c.id+',\'contacting\')">平台沟通中</button><button onclick="setStatus('+c.id+',\'trial\')">安排试听</button><button onclick="setStatus('+c.id+',\'pending_confirmation\')">待确认</button><button class="primary" onclick="confirmDeal('+c.id+')">✓ 确认成交</button><button onclick="setStatus('+c.id+',\'ongoing\')">进入进行中</button>'+reasonSelect+'<button class="danger" onclick="notConcluded('+c.id+')">确认未成交</button></div></div>';
+    const activeButtons=['matched','contacting','trial','pending_confirmation'].includes(c.status)?'<button class="primary" onclick="confirmDeal('+c.id+')">✓ 确认配对成功</button>'+reasonSelect+'<button class="danger" onclick="notConcluded('+c.id+')">确认未成交</button>':'';
+    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">家长：'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · 微信 '+esc(p.contact_wechat||'-')+' · '+esc(p.contact_email||'-')+' · 老师：'+esc(t.name||'-')+' · '+esc(t.contact_phone||'-')+' · '+esc(t.contact_email||'-')+'</div></div><div class="actions" style="margin-top:0"><span class="badge '+(c.status==='confirmed'?'ok':c.status==='not_concluded'?'warn':'')+'">'+esc(statusText)+'</span><button onclick="showCase('+c.id+')">查看详情</button></div></div><div class="actions"><button onclick="openCaseWhatsApp(c.id,&quot;parent&quot;)">💬 联系家长</button><button onclick="openCaseWhatsApp(c.id,&quot;tutor&quot;)">💬 联系老师</button></div><div class="meta">地区：'+esc(p.region||'-')+' · 家长预算：'+esc(p.budget||'-')+' · '+esc(p.freq||'-')+' · 每次'+esc(p.duration||'-')+' · '+esc(p.timeslot||'-')+'</div>'+form+'<div class="meta">预计平台佣金：S$'+(c.commission_amount?Number(c.commission_amount).toFixed(2):'—')+'</div><div class="actions">'+activeButtons+'</div></div>';
   }).join('');
 }
 async function setStatus(id,status){
@@ -379,7 +380,7 @@ async function setStatus(id,status){
 }
 async function confirmDeal(id){
   const c=cases.find(x=>x.id===id);if(!c)return;
-  if(!['matched','contacting','trial','pending_confirmation'].includes(c.status)){alert('请先建立配对并完成沟通/试听，再确认成交。');return;}
+  if(!['matched','contacting','trial','pending_confirmation'].includes(c.status)){alert('请先联系家长和老师，再确认配对成功。');return;}
   const rate=Number(document.getElementById('rate-'+id).value),duration=Number(document.getElementById('duration-'+id).value),freq=Number(document.getElementById('freq-'+id).value),date=document.getElementById('date-'+id).value||null;
   if(!(rate>0&&duration>0)){alert('请填写实际课费和单次课时');return}
   const commission=rate*duration*2;
@@ -475,7 +476,7 @@ async function showCase(id){
   const fields=[
     ['案例状态',statusText],['家长',p.contact_name],['家长电话',p.contact_phone],['家长微信',p.contact_wechat],['家长Email',p.contact_email],
     ['老师',t.name],['老师电话',t.contact_phone],['老师WhatsApp',t.whatsapp],['老师Email',t.contact_email],
-    ['双方兴趣',c.parent_interested_at&&c.tutor_interested_at?'双方均已表达兴趣':'一方已表达兴趣'],
+    
     ['家长兴趣时间',c.parent_interested_at],['老师兴趣时间',c.tutor_interested_at],['最近联系',c.last_contacted_at],
     ['试听/首课日期',c.first_lesson_date],['实际课费/小时',c.hourly_rate?'S$'+c.hourly_rate:''],
     ['单次课时',c.lesson_duration_hours?c.lesson_duration_hours+' 小时':''],['每周次数',c.lessons_per_week],
