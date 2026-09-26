@@ -21,6 +21,7 @@ create table if not exists public.parent_requests (
   contact_name text,
   contact_phone text,
   contact_email text,
+  contact_wechat text,
   request_status text not null default 'active' check (request_status in ('active','closed','removed')),
   removed_at timestamptz,
   removed_reason text,
@@ -54,6 +55,7 @@ create table if not exists public.tutor_profiles (
 alter table public.parent_requests add column if not exists contact_name text;
 alter table public.parent_requests add column if not exists contact_phone text;
 alter table public.parent_requests add column if not exists contact_email text;
+alter table public.parent_requests add column if not exists contact_wechat text;
 alter table public.parent_requests add column if not exists request_status text not null default 'active';
 alter table public.parent_requests add column if not exists removed_at timestamptz;
 alter table public.parent_requests add column if not exists removed_reason text;
