@@ -34,6 +34,7 @@ main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);bo
     <div><b id="who"></b></div><button onclick="logout()">退出</button>
   </div>
   <div class="grid" id="stats"></div>
+  <div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h2 style="margin:0">待处理撮合</h2><div class="meta">优先处理双方有兴趣的案例</div></div><div class="actions" style="margin-top:0"><button onclick="filterCases('all')">全部</button><button onclick="filterCases('both_interested')">双方有兴趣</button><button onclick="filterCases('contacting')">沟通中</button><button onclick="filterCases('trial')">试听中</button></div></div></div>
   <div class="note">佣金规则：确认成交时自动计算 = 实际每小时课费 × 单次课时 × 2。内部等级只用于平台运营，不会显示给家长或老师。</div>
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
@@ -57,7 +58,7 @@ main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);bo
 </main>
 <script>
 const sb=supabase.createClient(window.SUPABASE_CONFIG.url,window.SUPABASE_CONFIG.anonKey);
-let cases=[];
+let cases=[];let caseFilter='all';let directoryCache={parents:[],tutors:[]};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function msg(s){document.getElementById('login-msg').textContent=s}
 async function login(){
@@ -87,13 +88,30 @@ async function loadCases(){
   cases=data||[];renderStats();renderCases();
 }
 function renderStats(){
-  const total=cases.length, interested=cases.filter(x=>x.status==='both_interested').length, confirmed=cases.filter(x=>x.status==='confirmed').length, revenue=cases.reduce((s,x)=>s+Number(x.commission_amount||0),0);
-  document.getElementById('stats').innerHTML='<div class="stat"><b>'+total+'</b><span>撮合案例</span></div><div class="stat"><b>'+interested+'</b><span>双方有兴趣</span></div><div class="stat"><b>'+confirmed+'</b><span>已确认成交</span></div><div class="stat"><b>S$'+revenue.toFixed(2)+'</b><span>平台佣金</span></div>';
+  const parents=directoryCache.parents||[],tutors=directoryCache.tutors||[];
+  const today=new Date().toISOString().slice(0,10),month=new Date().toISOString().slice(0,7);
+  const newParents=parents.filter(x=>String(x.created_at||'').slice(0,10)===today).length;
+  const newTutors=tutors.filter(x=>String(x.created_at||'').slice(0,10)===today).length;
+  const interested=cases.filter(x=>x.status==='both_interested').length;
+  const contacting=cases.filter(x=>x.status==='contacting').length;
+  const trial=cases.filter(x=>x.status==='trial').length;
+  const confirmed=cases.filter(x=>x.status==='confirmed').length;
+  const commission=cases.filter(x=>String(x.confirmed_at||'').slice(0,7)===month&&x.status==='confirmed').reduce((s,x)=>s+Number(x.commission_amount||0),0);
+  document.getElementById('stats').innerHTML=
+    '<div class="stat"><b>'+newParents+'</b><span>今日新家长</span></div>'+
+    '<div class="stat"><b>'+newTutors+'</b><span>今日新老师</span></div>'+
+    '<div class="stat"><b>'+interested+'</b><span>双方有兴趣</span></div>'+
+    '<div class="stat"><b>'+contacting+'</b><span>沟通中</span></div>'+
+    '<div class="stat"><b>'+trial+'</b><span>试听中</span></div>'+
+    '<div class="stat"><b>'+confirmed+'</b><span>已成交</span></div>'+
+    '<div class="stat"><b>S$'+commission.toFixed(2)+'</b><span>本月佣金</span></div>';
 }
+function filterCases(status){caseFilter=status;renderCases();}
 function renderCases(){
   const el=document.getElementById('cases');
-  if(!cases.length){el.innerHTML='<div class="meta">还没有撮合案例。家长或老师点击“我有兴趣”后会自动生成案例。</div>';return}
-  el.innerHTML=cases.map(c=>{
+  const visible=caseFilter==='all'?cases:cases.filter(x=>x.status===caseFilter);
+  if(!visible.length){el.innerHTML='<div class="meta">还没有撮合案例。家长或老师点击“我有兴趣”后会自动生成案例。</div>';return}
+  el.innerHTML=visible.map(c=>{
     const p=c.parent_requests||{},t=c.tutor_profiles||{};
     const statusText={new:'一方有兴趣',both_interested:'双方有兴趣',contacting:'平台沟通中',trial:'已安排试听',confirmed:'已确认成交',not_concluded:'未成交',cancelled:'已取消'}[c.status]||c.status;
     const form='<div class="formgrid"><div><label>实际课费/小时</label><input id="rate-'+c.id+'" type="number" min="0" step="0.5" value="'+(c.hourly_rate??'')+'" placeholder="50"></div><div><label>单次课时</label><input id="duration-'+c.id+'" type="number" min="0.5" step="0.5" value="'+(c.lesson_duration_hours??'')+'" placeholder="2"></div><div><label>每周次数</label><input id="freq-'+c.id+'" type="number" min="0.5" step="0.5" value="'+(c.lessons_per_week??'')+'" placeholder="2"></div><div><label>首次上课日期</label><input id="date-'+c.id+'" type="date" value="'+(c.first_lesson_date||'')+'"></div></div>';
@@ -136,9 +154,10 @@ async function loadDirectory(){
     sb.from('tutor_profiles').select('id,name,rate,cred,contact_phone,contact_email,whatsapp,tutor_status,removed_at,removed_reason,created_at').order('created_at',{ascending:false})
   ]);
   if(parents.error){document.getElementById('parent-directory').innerHTML='<div class="meta">读取家长需求失败：'+esc(parents.error.message)+'</div>'}
-  else renderParentDirectory(parents.data||[]);
+  else {directoryCache.parents=parents.data||[];renderParentDirectory(directoryCache.parents);}
   if(tutors.error){document.getElementById('tutor-directory').innerHTML='<div class="meta">读取老师资料失败：'+esc(tutors.error.message)+'</div>'}
-  else renderTutorDirectory(tutors.data||[]);
+  else {directoryCache.tutors=tutors.data||[];renderTutorDirectory(directoryCache.tutors);}
+  renderStats();
 }
 function renderParentDirectory(rows){
   const el=document.getElementById('parent-directory');
