@@ -844,7 +844,9 @@ async function parentInterest(tutorId){
     interested_by: 'parent'
   });
   if(error && error.code !== '23505'){ console.error(error); toast('提交失败，请重试'); return; }
-  toast('已收到您的兴趣，平台会开始撮合');
+  const { data: caseRow } = await supabaseClient.from('match_cases').select('status').eq('parent_request_id', currentParentRequestId).eq('tutor_id', tutorId).maybeSingle();
+  if(caseRow?.status === 'both_interested') toast('🎉 双方都有兴趣！平台现在可以开始联系双方撮合');
+  else toast('已收到您的兴趣，等待老师回应');
 }
 
 async function tutorInterest(parentRequestId){
@@ -860,7 +862,7 @@ async function tutorInterest(parentRequestId){
     interested_by: 'tutor'
   });
   if(error && error.code !== '23505'){ console.error(error); toast('提交失败，请重试'); return; }
-  toast('已收到您的兴趣，平台会联系双方进行撮合');
+  toast('❤️ 已表达兴趣，平台会通知家长并继续撮合');
 }
 function tutorScopeMatches(scope, levelCode, subject){
   if(!scope || !levelCode) return false;
