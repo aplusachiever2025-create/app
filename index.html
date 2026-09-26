@@ -510,7 +510,7 @@ function addTutorScope(){
     <div class="scope-grid">
       <select class="scope-to" onchange="refreshTutorScopeSubjects(${id})"></select>
       <select class="scope-type" onchange="refreshTutorScopeSubjects(${id})">
-        <option value="SELECTED">选择科目</option>
+        <option value="SELECTED">Select Subjects</option>
         <option value="ALL">All Subjects</option>
         <option value="CUSTOM">Other / Custom</option>
       </select>
@@ -776,7 +776,7 @@ async function submitTutor(){
       const up = await supabaseClient.storage.from('tutor-resumes').upload(resumePath, tutor.resumeFile, {upsert:false,contentType});
       if(up.error){
         console.error('Resume upload failed:',up.error);
-        toast('履历上传失败：'+up.error.message);
+        toast('Resume upload failed: '+up.error.message);
         return;
       }
     }
