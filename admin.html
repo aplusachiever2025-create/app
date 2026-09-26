@@ -41,6 +41,21 @@ main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);bo
   <div class="grid" id="followup-stats" style="margin-top:12px"></div>
   <div id="followup-list" style="margin-top:10px"></div>
 </div>
+  <div class="card" style="margin-top:14px" id="daily-war-room">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <div><h2 style="margin:0">🎯 今日运营作战台</h2><div class="meta">按新加坡时间排序：先处理逾期，再处理今天任务，再处理高风险案例。</div></div>
+      <button onclick="loadWarRoom()">刷新作战台</button>
+    </div>
+    <div class="grid" id="warroom-stats" style="margin-top:12px"></div>
+    <div class="actions" style="margin-top:10px;flex-wrap:wrap">
+      <button onclick="warFilter='all';renderWarRoom()">全部</button>
+      <button onclick="warFilter='overdue';renderWarRoom()">🔴 逾期</button>
+      <button onclick="warFilter='today';renderWarRoom()">🟠 今天</button>
+      <button onclick="warFilter='risk';renderWarRoom()">⚠️ 高风险</button>
+      <button onclick="warFilter='7days';renderWarRoom()">📅 未来7天</button>
+    </div>
+    <div id="warroom-list" style="margin-top:10px"></div>
+  </div>
   <div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h2 style="margin:0">待处理撮合</h2><div class="meta">优先处理双方有兴趣的案例</div></div><div class="actions" style="margin-top:0"><button onclick="filterCases('all')">全部</button><button onclick="filterCases('both_interested')">双方有兴趣</button><button onclick="filterCases('contacting')">沟通中</button><button onclick="filterCases('trial')">试听中</button></div></div></div>
   <div class="note">佣金规则：确认成交时自动计算 = 实际每小时课费 × 单次课时 × 2。内部等级只用于平台运营，不会显示给家长或老师。</div>
   <div class="card">
@@ -73,7 +88,7 @@ main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);bo
 </div>
 <script>
 const sb=supabase.createClient(window.SUPABASE_CONFIG.url,window.SUPABASE_CONFIG.anonKey);
-let cases=[];let caseFilter='all';let directoryCache={parents:[],tutors:[]};let followups=[];
+let cases=[];let caseFilter='all';let directoryCache={parents:[],tutors:[]};let followups=[];let warFilter='all';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function msg(s){document.getElementById('login-msg').textContent=s}
 async function login(){
@@ -96,7 +111,7 @@ async function boot(){
   document.getElementById('who').textContent='管理员：'+(admin.display_name||user.email);
   await loadCases();
   await loadDirectory();
-  await loadFollowups();
+  await loadFollowups();loadWarRoom();
 }
 async function loadCases(){
   const {data,error}=await sb.from('match_cases').select('*,parent_requests(id,level,subject,region,budget,freq,duration,timeslot,goal,contact_name,contact_phone,contact_email,contact_wechat),tutor_profiles(id,name,rate,cred,whatsapp,contact_email,contact_phone,tutor_status)').order('created_at',{ascending:false});
@@ -149,6 +164,21 @@ async function completeFollowup(id){
   if(error){alert('操作失败：'+error.message);return}
   await loadFollowups();
 }
+
+function sgDayKey(v){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Singapore',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(v))}
+function sgDayDiff(v){const a=new Date(sgDayKey(new Date())+'T00:00:00+08:00'),b=new Date(sgDayKey(v)+'T00:00:00+08:00');return Math.round((b-a)/86400000)}
+function warStatus(s){return {new:'一方有兴趣',both_interested:'双方有兴趣',contacting:'沟通中',trial:'试听中',confirmed:'已成交',not_concluded:'未成交',cancelled:'已取消'}[s]||s}
+function warRisk(c){if(['confirmed','cancelled','not_concluded'].includes(c.status))return false;const open=followups.some(n=>n.match_case_id===c.id);const stale=c.last_contacted_at?Math.floor((Date.now()-new Date(c.last_contacted_at).getTime())/86400000):99;return !open&&stale>=3}
+function loadWarRoom(){renderWarRoom()}
+function renderWarRoom(){
+ const el=document.getElementById('warroom-list'),st=document.getElementById('warroom-stats');if(!el||!st)return;
+ const overdue=followups.filter(x=>sgDayDiff(x.next_action_at)<0),today=followups.filter(x=>sgDayDiff(x.next_action_at)===0),next7=followups.filter(x=>sgDayDiff(x.next_action_at)>=0&&sgDayDiff(x.next_action_at)<=7),risk=cases.filter(warRisk);
+ st.innerHTML='<div class="stat"><b>🔴 '+overdue.length+'</b><span>逾期待办</span></div><div class="stat"><b>🟠 '+today.length+'</b><span>今日必须处理</span></div><div class="stat"><b>⚠️ '+risk.length+'</b><span>高风险案例</span></div><div class="stat"><b>📅 '+next7.length+'</b><span>未来7天任务</span></div>';
+ let rows=followups.map(x=>({kind:'task',n:x,c:x.match_cases||{}})).concat(risk.map(c=>({kind:'risk',n:{match_case_id:c.id,contact_target:'both',note:'超过3天没有下一步跟进记录',next_action:'立即联系并建立下一步'},c:c})));
+ rows=rows.filter(x=>{if(warFilter==='overdue')return x.kind==='task'&&sgDayDiff(x.n.next_action_at)<0;if(warFilter==='today')return x.kind==='task'&&sgDayDiff(x.n.next_action_at)===0;if(warFilter==='7days')return x.kind==='task'&&sgDayDiff(x.n.next_action_at)>=0&&sgDayDiff(x.n.next_action_at)<=7;if(warFilter==='risk')return x.kind==='risk';return true});
+ rows.sort((a,b)=>{const priority=x=>x.kind==='risk'?0:(sgDayDiff(x.n.next_action_at)<0?1:sgDayDiff(x.n.next_action_at)===0?2:3);return priority(a)-priority(b)||(new Date(a.n.next_action_at||'9999')-new Date(b.n.next_action_at||'9999'))});
+ if(!rows.length){el.innerHTML='<div class="meta">🎉 今天没有需要处理的任务。</div>';return}
+ el.innerHTML=rows.map(x=>{const c=x.c||{},p=c.parent_requests||{},t=c.tutor_profiles||{},d=x.kind==='risk'?'risk':sgDayDiff(x.n.next_action_at)<0?'overdue':sgDayDiff(x.n.next_action_at)===0?'today':'later';const badge=x.kind==='risk'?'⚠️ 高风险':d==='overdue'?'🔴 逾期':d==='today'?'🟠 今天':'📅 后续';return '<div class="case" style="margin:8px 0"><div class="case-head"><div><b>'+esc(p.contact_name||'-')+' ↔ '+esc(t.name||'-')+'</b><div class="meta">案例 #'+x.n.match_case_id+' · '+esc(p.subject||'-')+' · '+esc(p.level||'-')+' · '+esc(warStatus(c.status))+'</div></div><div class="actions" style="margin-top:0"><span class="badge '+(d==='today'?'warn':'')+'">'+badge+'</span><button onclick="showCase('+x.n.match_case_id+')">打开案例</button>'+(x.kind==='task'?'<button onclick="completeFollowup('+x.n.id+')">✓ 完成</button>':'')+'</div></div><div style="margin-top:8px"><span class="meta">上次结果：</span>'+esc(x.n.note||'-')+'</div><div style="margin-top:5px"><b>➡ 下一步：</b>'+esc(x.n.next_action||'立即建立下一步')+' <span class="meta">'+(x.n.next_action_at?'· '+fmtTime(x.n.next_action_at):'')+'</span></div></div>'}).join('')}
 function renderStats(){
   const parents=directoryCache.parents||[],tutors=directoryCache.tutors||[];
   const today=new Date().toISOString().slice(0,10),month=new Date().toISOString().slice(0,7);
