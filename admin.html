@@ -122,6 +122,11 @@ function openParentWhatsApp(parentId){
   if(!p){alert('找不到这个家长需求');return;}
   openWhatsApp('parent',p.contact_whatsapp||p.contact_phone,null);
 }
+function openTutorWhatsApp(tutorId){
+  const t=directoryCache.tutors.find(x=>x.id===tutorId);
+  if(!t){alert('找不到这个老师资料');return;}
+  openWhatsApp('tutor',t.whatsapp||t.contact_phone,null);
+}
 async function openWhatsApp(target,number,caseId){
   const d=normalizeWhatsApp(number);
   if(!d){alert('没有可用的 WhatsApp 号码');return;}
@@ -381,7 +386,7 @@ function renderTutorDirectory(rows){
   if(!rows.length){el.innerHTML='<div class="meta">暂无老师资料。</div>';return}
   el.innerHTML=rows.map(t=>{
     const active=t.tutor_status==='active';
-    return '<div class="case"><div class="case-head"><div><b>'+esc(t.name||'-')+'</b><div class="meta">'+esc(t.cred||'-')+' · '+esc(t.rate||'-')+' · '+esc(t.contact_phone||'-')+' · '+esc(t.contact_email||'-')+' · WhatsApp '+esc(formatWhatsApp(t.whatsapp))+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'接单中':'已移除')+'</span></div><div class="actions"><button onclick="openWhatsApp(\'tutor\',t.whatsapp||t.contact_phone,null)">💬 WhatsApp</button>'+(t.resume_path?'<button onclick="openResume(\''+esc(t.resume_path).replace(/'/g,"\\'")+'\')">📄 打开履历</button>':'<span class="badge warn">📄 未上传履历</span>')+'</div><div class="meta">履历：'+esc(t.resume_name||'未上传')+'</div><div class="meta">创建：'+esc(t.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeTutor('+t.id+')">移除老师</button>':'<button onclick="restoreTutor('+t.id+')">重新启用</button>')+'</div></div>';
+    return '<div class="case"><div class="case-head"><div><b>'+esc(t.name||'-')+'</b><div class="meta">'+esc(t.cred||'-')+' · '+esc(t.rate||'-')+' · '+esc(t.contact_phone||'-')+' · '+esc(t.contact_email||'-')+' · WhatsApp '+esc(formatWhatsApp(t.whatsapp))+'</div></div><span class="badge '+(active?'ok':'warn')+'">'+(active?'接单中':'已移除')+'</span></div><div class="actions"><button onclick="openTutorWhatsApp(t.id)">💬 WhatsApp</button>'+(t.resume_path?'<button onclick="openResume(\''+esc(t.resume_path).replace(/'/g,"\\'")+'\')">📄 打开履历</button>':'<span class="badge warn">📄 未上传履历</span>')+'</div><div class="meta">履历：'+esc(t.resume_name||'未上传')+'</div><div class="meta">创建：'+esc(t.created_at||'-')+'</div><div class="actions">'+(active?'<button class="danger" onclick="removeTutor('+t.id+')">移除老师</button>':'<button onclick="restoreTutor('+t.id+')">重新启用</button>')+'</div></div>';
   }).join('');
 }
 function closeModal(){document.getElementById('modal').classList.add('hidden');}
