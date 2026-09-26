@@ -41,6 +41,17 @@ main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);bo
   <div class="grid" id="followup-stats" style="margin-top:12px"></div>
   <div id="followup-list" style="margin-top:10px"></div>
 </div>
+  <div class="card" style="margin-top:14px" id="ops-overview">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <div><h2 style="margin:0">📊 运营主管驾驶舱</h2><div class="meta">从“有没有案例”升级到“今天团队做了多少、漏斗走到哪里、哪些需求没人跟”。</div></div>
+      <button onclick="loadOpsOverview()">刷新驾驶舱</button>
+    </div>
+    <div class="grid" id="ops-kpis" style="margin-top:12px"></div>
+    <div class="detail-grid" style="margin-top:12px">
+      <div class="detail-item"><b>📈 撮合漏斗</b><div id="ops-funnel" style="margin-top:8px"></div></div>
+      <div class="detail-item"><b>👥 运营人员工作量</b><div id="ops-workload" style="margin-top:8px"></div></div>
+    </div>
+  </div>
   <div class="card" style="margin-top:14px" id="daily-war-room">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
       <div><h2 style="margin:0">🎯 今日运营作战台</h2><div class="meta">按新加坡时间排序：先处理逾期，再处理今天任务，再处理高风险案例。</div></div>
@@ -153,7 +164,9 @@ async function boot(){
   document.getElementById('who').textContent='管理员：'+(admin.display_name||user.email);
   await loadCases();
   await loadDirectory();
-  await loadFollowups();loadWarRoom();
+  await loadFollowups();
+  await loadOpsOverview();
+  loadWarRoom();
 }
 async function loadCases(){
   const {data,error}=await sb.from('match_cases').select('*,parent_requests(id,level,subject,region,budget,freq,duration,timeslot,goal,contact_name,contact_phone,contact_whatsapp,contact_email,contact_wechat),tutor_profiles(id,name,rate,cred,whatsapp,contact_email,contact_phone,tutor_status,review_status,resume_path,resume_name)').order('created_at',{ascending:false});
@@ -207,6 +220,46 @@ async function completeFollowup(id){
   await loadFollowups();
 }
 
+async function loadOpsOverview(){
+  const kpi=document.getElementById('ops-kpis'),funnel=document.getElementById('ops-funnel'),work=document.getElementById('ops-workload');
+  if(!kpi||!funnel||!work)return;
+  const now=new Date(),todayKey=sgDayKey(now),todayNotes=(followups||[]);
+  const [adminsRes,notesRes]=await Promise.all([
+    sb.from('platform_admins').select('user_id,display_name').eq('active',true).order('display_name'),
+    sb.from('match_case_notes').select('admin_user_id,note_type,created_at,completed_at,next_action_at')
+  ]);
+  const admins=adminsRes.data||[],notes=notesRes.data||[];
+  const todayNotesAll=notes.filter(n=>sgDayKey(n.created_at)===todayKey);
+  const todayCompleted=notes.filter(n=>n.completed_at&&sgDayKey(n.completed_at)===todayKey);
+  const plannedToday=notes.filter(n=>n.next_action_at&&sgDayKey(n.next_action_at)===todayKey);
+  const completedPlanned=plannedToday.filter(n=>n.completed_at&&sgDayKey(n.completed_at)===todayKey);
+  const overdue=todayNotes.filter(n=>n.next_action_at&&sgDayDiff(n.next_action_at)<0);
+  const activeCases=cases.filter(c=>!['confirmed','ongoing','not_concluded','cancelled'].includes(c.status)).length;
+  const openParents=(directoryCache.parents||[]).filter(p=>p.request_status==='active').length;
+  const activeTutors=(directoryCache.tutors||[]).filter(t=>t.tutor_status==='active').length;
+  const rate=plannedToday.length?Math.round(completedPlanned.length/plannedToday.length*100):null;
+  kpi.innerHTML=
+    '<div class="stat"><b>'+todayNotesAll.length+'</b><span>今日团队跟进</span></div>'+
+    '<div class="stat"><b>'+todayCompleted.length+'</b><span>今日已完成</span></div>'+
+    '<div class="stat"><b>'+(rate===null?'—':rate+'%')+'</b><span>今日计划完成率</span></div>'+
+    '<div class="stat"><b>'+overdue.length+'</b><span>逾期任务</span></div>'+
+    '<div class="stat"><b>'+activeCases+'</b><span>进行中撮合</span></div>'+
+    '<div class="stat"><b>'+openParents+'</b><span>开放家长需求</span></div>'+
+    '<div class="stat"><b>'+activeTutors+'</b><span>可接单老师</span></div>';
+  const order=['new','matched','contacting','trial','pending_confirmation','confirmed','ongoing'];
+  const labels={new:'新需求',matched:'已配对',contacting:'沟通',trial:'试听',pending_confirmation:'待确认',confirmed:'成交',ongoing:'进行中'};
+  funnel.innerHTML=order.map((st,i)=>{
+    const count=cases.filter(c=>c.status===st).length;
+    return '<div style="display:flex;align-items:center;gap:8px;margin:5px 0"><span style="width:72px;font-size:12px">'+labels[st]+'</span><div style="flex:1;height:8px;background:var(--line);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+Math.min(100,count*12+ (count?8:0))+'%;background:var(--accent)"></div></div><b style="width:28px;text-align:right">'+count+'</b></div>';
+  }).join('')+
+  '<div class="meta" style="margin-top:8px">未成交：'+cases.filter(c=>c.status==='not_concluded').length+' · 已取消：'+cases.filter(c=>c.status==='cancelled').length+'</div>';
+  const roster=admins.map(a=>{
+    const mine=notes.filter(n=>n.admin_user_id===a.user_id),today=mine.filter(n=>sgDayKey(n.created_at)===todayKey),done=today.filter(n=>n.completed_at&&sgDayKey(n.completed_at)===todayKey).length;
+    const open=followups.filter(n=>n.admin_user_id===a.user_id).length;
+    return {name:a.display_name||a.user_id.slice(0,8),today:today.length,done,open};
+  }).sort((a,b)=>b.today-a.today);
+  work.innerHTML=roster.length?roster.map(x=>'<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)"><b>'+esc(x.name)+'</b><span class="meta">今日 '+x.today+'</span><span class="meta">完成 '+x.done+'</span><span class="badge '+(x.open?'warn':'ok')+'">待办 '+x.open+'</span></div>').join(''):'<div class="meta">暂无运营人员数据。</div>';
+}
 function sgDayKey(v){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Singapore',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(v))}
 function sgDayDiff(v){const a=new Date(sgDayKey(new Date())+'T00:00:00+08:00'),b=new Date(sgDayKey(v)+'T00:00:00+08:00');return Math.round((b-a)/86400000)}
 function warStatus(s){return {new:'新需求',matched:'已配对',contacting:'沟通中',trial:'试听中',pending_confirmation:'待确认',confirmed:'已成交',ongoing:'进行中',not_concluded:'未成交',cancelled:'已取消'}[s]||s}
