@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SG Tutor Match · 平台后台</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<style>
+:root{--bg:#f6f4f1;--card:#fff;--ink:#1d1b19;--sub:#716c65;--line:#e5dfd7;--accent:#b85d2c;--ok:#2e7d4f;--warn:#a36b18;--radius:14px}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang SC","Helvetica Neue",Arial,sans-serif}
+header{background:var(--card);border-bottom:1px solid var(--line);padding:20px;position:sticky;top:0;z-index:5}header h1{margin:0;font-size:20px}header p{margin:5px 0 0;color:var(--sub);font-size:13px}
+main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px}
+.login{max-width:420px;margin:60px auto}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{padding:14px;border:1px solid var(--line);border-radius:12px}.stat b{display:block;font-size:22px}.stat span{color:var(--sub);font-size:12px}
+.case{border:1px solid var(--line);border-radius:14px;padding:15px;margin:10px 0}.case-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.badge{padding:4px 9px;border-radius:999px;background:#f1ece5;font-size:12px}.badge.ok{background:#e8f4ed;color:var(--ok)}.badge.warn{background:#fff3d9;color:var(--warn)}
+.meta{font-size:13px;color:var(--sub);line-height:1.55;margin-top:4px}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}button{border:1px solid var(--line);background:#fff;padding:9px 12px;border-radius:9px;cursor:pointer}button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}button.danger{color:#9a3c2c}.formgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}input,select,textarea{width:100%;padding:9px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);font:inherit}.hidden{display:none}.note{background:#fff8e8;border:1px solid #ead8aa;padding:10px;border-radius:10px;font-size:12px;color:#765b1d;margin-top:10px}
+@media(max-width:760px){.grid,.formgrid{grid-template-columns:1fr 1fr}.case-head{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+<header><h1>SG Tutor Match · 平台撮合后台</h1><p>内部使用 · 家长/老师不会看到本页面的等级、成交和佣金数据</p></header>
+<main>
+<section id="login" class="card login">
+  <h2>平台管理员登录</h2>
+  <p class="meta">使用 Supabase Auth 管理员账号登录。</p>
+  <label>Email</label><input id="email" type="email" placeholder="admin@example.com">
+  <label style="display:block;margin:10px 0 5px;">Password</label><input id="password" type="password" placeholder="••••••••">
+  <button class="primary" style="width:100%;margin-top:12px" onclick="login()">登录</button>
+  <div id="login-msg" class="meta"></div>
+</section>
+
+<section id="dashboard" class="hidden">
+  <div class="actions" style="justify-content:space-between">
+    <div><b id="who"></b></div><button onclick="logout()">退出</button>
+  </div>
+  <div class="grid" id="stats"></div>
+  <div class="note">佣金规则：确认成交时自动计算 = 实际每小时课费 × 单次课时 × 2。内部等级只用于平台运营，不会显示给家长或老师。</div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <h2 style="margin:0">撮合案例</h2><button onclick="loadCases()">刷新</button>
+    </div>
+    <div id="cases"></div>
+  </div>
+</section>
+</main>
+<script>
+const sb=supabase.createClient(window.SUPABASE_CONFIG.url,window.SUPABASE_CONFIG.anonKey);
+let cases=[];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function msg(s){document.getElementById('login-msg').textContent=s}
+async function login(){
+  const email=document.getElementById('email').value.trim(),password=document.getElementById('password').value;
+  if(!email||!password){msg('请输入账号和密码');return}
+  const {error}=await sb.auth.signInWithPassword({email,password});
+  if(error){msg('登录失败：'+error.message);return}
+  await boot();
+}
+async function logout(){await sb.auth.signOut();location.reload()}
+async function boot(){
+  const {data:{user}}=await sb.auth.getUser();
+  if(!user){document.getElementById('login').classList.remove('hidden');return}
+  const {data:admin,error}=await sb.from('platform_admins').select('display_name,active').eq('user_id',user.id).maybeSingle();
+  if(error||!admin||!admin.active){
+    msg('此账号还没有平台管理员权限。请在 Supabase SQL Editor 将该 Auth User ID 加入 platform_admins： '+user.id);
+    await sb.auth.signOut();return;
+  }
+  document.getElementById('login').classList.add('hidden');document.getElementById('dashboard').classList.remove('hidden');
+  document.getElementById('who').textContent='管理员：'+(admin.display_name||user.email);
+  await loadCases();
+}
+async function loadCases(){
+  const {data,error}=await sb.from('match_cases').select('*,parent_requests(id,level,subject,region,budget,freq,duration,timeslot,goal,contact_name,contact_phone,contact_email),tutor_profiles(id,name,rate,cred,whatsapp)').order('created_at',{ascending:false});
+  if(error){document.getElementById('cases').innerHTML='<div class="meta">读取失败：'+esc(error.message)+'</div>';return}
+  cases=data||[];renderStats();renderCases();
+}
+function renderStats(){
+  const total=cases.length, interested=cases.filter(x=>x.status==='both_interested').length, confirmed=cases.filter(x=>x.status==='confirmed').length, revenue=cases.reduce((s,x)=>s+Number(x.commission_amount||0),0);
+  document.getElementById('stats').innerHTML='<div class="stat"><b>'+total+'</b><span>撮合案例</span></div><div class="stat"><b>'+interested+'</b><span>双方有兴趣</span></div><div class="stat"><b>'+confirmed+'</b><span>已确认成交</span></div><div class="stat"><b>S$'+revenue.toFixed(2)+'</b><span>平台佣金</span></div>';
+}
+function renderCases(){
+  const el=document.getElementById('cases');
+  if(!cases.length){el.innerHTML='<div class="meta">还没有撮合案例。家长或老师点击“我有兴趣”后会自动生成案例。</div>';return}
+  el.innerHTML=cases.map(c=>{
+    const p=c.parent_requests||{},t=c.tutor_profiles||{};
+    const statusText={new:'一方有兴趣',both_interested:'双方有兴趣',contacting:'平台沟通中',trial:'已安排试听',confirmed:'已确认成交',not_concluded:'未成交',cancelled:'已取消'}[c.status]||c.status;
+    const form='<div class="formgrid"><div><label>实际课费/小时</label><input id="rate-'+c.id+'" type="number" min="0" step="0.5" value="'+(c.hourly_rate??'')+'" placeholder="50"></div><div><label>单次课时</label><input id="duration-'+c.id+'" type="number" min="0.5" step="0.5" value="'+(c.lesson_duration_hours??'')+'" placeholder="2"></div><div><label>每周次数</label><input id="freq-'+c.id+'" type="number" min="0.5" step="0.5" value="'+(c.lessons_per_week??'')+'" placeholder="2"></div><div><label>首次上课日期</label><input id="date-'+c.id+'" type="date" value="'+(c.first_lesson_date||'')+'"></div></div>';
+    const reasons=['家长取消','老师取消','预算不合适','时间不合适','地区不合适','双方沟通后不合适','已自行找到老师','其他'];
+    const reasonSelect='<select id="reason-'+c.id+'"><option value="">选择未成交原因</option>'+reasons.map(x=>'<option '+(c.not_concluded_reason===x?'selected':'')+'>'+x+'</option>').join('')+'</select>';
+    return '<div class="case"><div class="case-head"><div><b>'+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</b><div class="meta">家长：'+esc(p.contact_name||'-')+' · '+esc(p.contact_phone||'-')+' · 老师：'+esc(t.name||'-')+'</div></div><span class="badge '+(c.status==='confirmed'?'ok':c.status==='not_concluded'?'warn':'')+'">'+esc(statusText)+'</span></div><div class="meta">地区：'+esc(p.region||'-')+' · 家长预算：'+esc(p.budget||'-')+' · '+esc(p.freq||'-')+' · 每次'+esc(p.duration||'-')+' · '+esc(p.timeslot||'-')+'</div>'+form+'<div class="meta">预计平台佣金：S$'+(c.commission_amount?Number(c.commission_amount).toFixed(2):'—')+'</div><div class="actions"><button onclick="setStatus('+c.id+',\'contacting\')">平台沟通中</button><button onclick="setStatus('+c.id+',\'trial\')">安排试听</button><button class="primary" onclick="confirmDeal('+c.id+')">✓ 确认成交</button>'+reasonSelect+'<button class="danger" onclick="notConcluded('+c.id+')">确认未成交</button></div></div>';
+  }).join('');
+}
+async function setStatus(id,status){const {error}=await sb.from('match_cases').update({status,last_contacted_at:status==='contacting'?new Date().toISOString():undefined}).eq('id',id);if(error)alert(error.message);else loadCases()}
+async function confirmDeal(id){
+  const c=cases.find(x=>x.id===id);if(!c)return;
+  const rate=Number(document.getElementById('rate-'+id).value),duration=Number(document.getElementById('duration-'+id).value),freq=Number(document.getElementById('freq-'+id).value),date=document.getElementById('date-'+id).value||null;
+  if(!(rate>0&&duration>0)){alert('请填写实际课费和单次课时');return}
+  const commission=rate*duration*2;
+  const {data:{user}}=await sb.auth.getUser();
+  const {error}=await sb.from('match_cases').update({status:'confirmed',confirmed_at:new Date().toISOString(),confirmed_by:user.id,hourly_rate:rate,lesson_duration_hours:duration,lessons_per_week:freq||null,first_lesson_date:date,commission_amount:commission,commission_status:'pending'}).eq('id',id);
+  if(error){alert(error.message);return}
+  await recalcScores(c.parent_request_id,c.tutor_id);
+  await loadCases();
+}
+async function notConcluded(id){
+  const reason=document.getElementById('reason-'+id).value;if(!reason){alert('请选择未成交原因');return}
+  const c=cases.find(x=>x.id===id);
+  const {error}=await sb.from('match_cases').update({status:'not_concluded',not_concluded_reason:reason}).eq('id',id);
+  if(error){alert(error.message);return}
+  await recalcScores(c.parent_request_id,c.tutor_id);await loadCases();
+}
+async function recalcScores(parentId,tutorId){
+  const {data:all}=await sb.from('match_cases').select('parent_request_id,tutor_id,status');
+  const rows=all||[];
+  const ts=rows.filter(x=>x.tutor_id===tutorId),ps=rows.filter(x=>x.parent_request_id===parentId);
+  const tConfirmed=ts.filter(x=>x.status==='confirmed').length,tNo=ts.filter(x=>x.status==='not_concluded').length,tCancel=ts.filter(x=>x.status==='cancelled').length;
+  const pConfirmed=ps.filter(x=>x.status==='confirmed').length,pNo=ps.filter(x=>x.status==='not_concluded').length,pCancel=ps.filter(x=>x.status==='cancelled').length;
+  const tScore=Math.max(0,tConfirmed*12-tNo*2-tCancel*5),pScore=Math.max(0,pConfirmed*15-pNo*2-pCancel*5);
+  const tLevel=tScore>=100?'金牌':tScore>=60?'银牌':tScore>=25?'铜牌':tScore<5&&tNo>=5?'观察':'普通';
+  const pLevel=pScore>=80?'黄质':pScore>=45?'银质':pScore>=20?'铜质':pScore<5&&pNo>=5?'观察':'普通';
+  await sb.from('tutor_internal_scores').upsert({tutor_id:tutorId,level:tLevel,recommendations:ts.length,interests:ts.length,confirmed_deals:tConfirmed,not_concluded:tNo,cancellations:tCancel,score:tScore,updated_at:new Date().toISOString()});
+  await sb.from('parent_internal_scores').upsert({parent_request_id:parentId,level:pLevel,requests:ps.length,interests:ps.length,confirmed_deals:pConfirmed,not_concluded:pNo,cancellations:pCancel,score:pScore,updated_at:new Date().toISOString()});
+}
+boot();
+</script>
+</body>
+</html>
