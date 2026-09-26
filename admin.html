@@ -67,6 +67,14 @@ main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);bo
     </div>
     <div id="warroom-list" style="margin-top:10px"></div>
   </div>
+  <div class="card" id="work-queue" style="margin-top:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <div><h2 style="margin:0">⚡ 运营工作队列</h2><div class="meta">按“现在最该做什么”排序，不是数据库状态。运营人员每天优先处理这里。</div></div>
+      <button onclick="renderWorkQueue()">刷新队列</button>
+    </div>
+    <div class="grid" id="work-queue-stats" style="margin-top:12px"></div>
+    <div id="work-queue-list" style="margin-top:10px"></div>
+  </div>
   <div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h2 style="margin:0">待处理撮合</h2><div class="meta">优先处理 SmartMatch 已建立的撮合案例</div></div><div class="actions" style="margin-top:0"><button onclick="filterCases('all')">全部</button><button onclick="filterCases('matched')">已配对</button><button onclick="filterCases('contacting')">沟通中</button><button onclick="filterCases('trial')">试听中</button><button onclick="filterCases('pending_confirmation')">待确认</button></div></div></div>
   <div class="note">佣金规则：确认成交时自动计算 = 实际每小时课费 × 单次课时 × 2。内部等级只用于平台运营，不会显示给家长或老师。</div>
   <div class="card">
@@ -182,13 +190,14 @@ async function boot(){
   await runSmartMatch(true);
   await loadDirectory();
   await loadFollowups();
+  renderWorkQueue();
   await loadOpsOverview();
   loadWarRoom();
 }
 async function loadCases(){
   const {data,error}=await sb.from('match_cases').select('*,parent_requests(id,level,subject,region,budget,freq,duration,timeslot,goal,contact_name,contact_phone,contact_whatsapp,contact_email,contact_wechat),tutor_profiles(id,name,rate,cred,whatsapp,contact_email,contact_phone,tutor_status,review_status,resume_path,resume_name)').order('created_at',{ascending:false});
   if(error){document.getElementById('cases').innerHTML='<div class="meta">读取失败：'+esc(error.message)+'</div>';return}
-  cases=data||[];renderStats();renderCases();
+  cases=data||[];renderStats();renderCases();renderWorkQueue();
 }
 function localDateKey(d){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
 function startOfLocalDay(d){const x=new Date(d);x.setHours(0,0,0,0);return x}
@@ -291,6 +300,30 @@ function renderWarRoom(){
  rows.sort((a,b)=>{const priority=x=>x.kind==='risk'?0:(sgDayDiff(x.n.next_action_at)<0?1:sgDayDiff(x.n.next_action_at)===0?2:3);return priority(a)-priority(b)||(new Date(a.n.next_action_at||'9999')-new Date(b.n.next_action_at||'9999'))});
  if(!rows.length){el.innerHTML='<div class="meta">🎉 今天没有需要处理的任务。</div>';return}
  el.innerHTML=rows.map(x=>{const c=x.c||{},p=c.parent_requests||{},t=c.tutor_profiles||{},d=x.kind==='risk'?'risk':sgDayDiff(x.n.next_action_at)<0?'overdue':sgDayDiff(x.n.next_action_at)===0?'today':'later';const badge=x.kind==='risk'?'⚠️ 高风险':d==='overdue'?'🔴 逾期':d==='today'?'🟠 今天':'📅 后续';return '<div class="case" style="margin:8px 0"><div class="case-head"><div><b>'+esc(p.contact_name||'-')+' ↔ '+esc(t.name||'-')+'</b><div class="meta">案例 #'+x.n.match_case_id+' · '+esc(p.subject||'-')+' · '+esc(p.level||'-')+' · '+esc(warStatus(c.status))+'</div></div><div class="actions" style="margin-top:0"><span class="badge '+(d==='today'?'warn':'')+'">'+badge+'</span><button onclick="showCase('+x.n.match_case_id+')">打开案例</button>'+(x.kind==='task'?'<button onclick="completeFollowup('+x.n.id+')">✓ 完成</button>':'')+'</div></div><div style="margin-top:8px"><span class="meta">上次结果：</span>'+esc(x.n.note||'-')+'</div><div style="margin-top:5px"><b>➡ 下一步：</b>'+esc(x.n.next_action||'立即建立下一步')+' <span class="meta">'+(x.n.next_action_at?'· '+fmtTime(x.n.next_action_at):'')+'</span></div></div>'}).join('')}
+function renderWorkQueue(){
+  const stats=document.getElementById('work-queue-stats'),list=document.getElementById('work-queue-list');
+  if(!stats||!list)return;
+  const now=new Date(), today=new Date(now.toLocaleString('en-US',{timeZone:'Asia/Singapore'})), day=today.toISOString().slice(0,10);
+  const openCases=cases.filter(c=>!['confirmed','ongoing','not_concluded','cancelled'].includes(c.status));
+  const overdue=followups.filter(f=>!f.completed_at&&f.next_action_at&&new Date(f.next_action_at)<now);
+  const todayTasks=followups.filter(f=>!f.completed_at&&f.next_action_at&&new Date(f.next_action_at).toLocaleDateString('en-CA',{timeZone:'Asia/Singapore'})===day);
+  const unmatched=cases.filter(c=>c.status==='matched');
+  const trial=cases.filter(c=>c.status==='trial');
+  const confirm=cases.filter(c=>c.status==='pending_confirmation');
+  stats.innerHTML='<div class="stat"><b>🔴 '+overdue.length+'</b><span>已逾期</span></div><div class="stat"><b>🟠 '+todayTasks.length+'</b><span>今天要做</span></div><div class="stat"><b>🎯 '+unmatched.length+'</b><span>待开始沟通</span></div><div class="stat"><b>🟡 '+trial.length+'</b><span>试听中</span></div><div class="stat"><b>🔵 '+confirm.length+'</b><span>待确认成交</span></div>';
+  const rows=[];
+  overdue.forEach(f=>rows.push({priority:0,title:'逾期跟进',color:'🔴',caseId:f.match_case_id,sub:f.next_action||'请立即跟进',time:f.next_action_at,note:f.note}));
+  todayTasks.filter(f=>!overdue.some(o=>o.id===f.id)).forEach(f=>rows.push({priority:1,title:'今天跟进',color:'🟠',caseId:f.match_case_id,sub:f.next_action||'今天处理',time:f.next_action_at,note:f.note}));
+  unmatched.forEach(c=>rows.push({priority:2,title:'开始沟通',color:'🎯',caseId:c.id,sub:'SmartMatch '+(c.match_score!=null?c.match_score+'/100':'已配对'),time:c.created_at,note:(c.match_reasons||[]).join(' · ')}));
+  trial.forEach(c=>rows.push({priority:3,title:'试听后跟进',color:'🟡',caseId:c.id,sub:'确认试听反馈并推进成交',time:c.last_contacted_at||c.created_at,note:''}));
+  confirm.forEach(c=>rows.push({priority:4,title:'等待成交确认',color:'🔵',caseId:c.id,sub:'联系双方确认是否成交',time:c.last_contacted_at||c.created_at,note:''}));
+  if(!rows.length){list.innerHTML='<div class="meta">🎉 当前没有需要立即处理的运营事项。</div>';return}
+  rows.sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time));
+  list.innerHTML=rows.slice(0,25).map(r=>{
+    const c=cases.find(x=>x.id===r.caseId),p=c?.parent_requests||{},t=c?.tutor_profiles||{};
+    return '<div class="case"><div class="case-head"><div><b>'+r.color+' '+esc(r.title)+'</b><div class="meta">'+esc(p.contact_name||'-')+' ↔ '+esc(t.name||'待配对')+' · '+esc(p.subject||'-')+' · '+esc(p.level||'-')+'</div></div><button onclick="showCase('+r.caseId+')">进入处理</button></div><div class="meta">'+esc(r.sub)+(r.note?' · '+esc(r.note):'')+'</div><div class="actions"><button onclick="showCase('+r.caseId+')">查看案例</button><button onclick="openCaseWhatsApp('+r.caseId+",&quot;parent&quot;)">💬 联系家长</button><button onclick="openCaseWhatsApp('+r.caseId+",&quot;tutor&quot;)">💬 联系老师</button></div></div>';
+  }).join('');
+}
 function renderStats(){
   const parents=directoryCache.parents||[],tutors=directoryCache.tutors||[];
   const today=new Date().toISOString().slice(0,10),month=new Date().toISOString().slice(0,7);
