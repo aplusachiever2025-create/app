@@ -233,6 +233,10 @@ create policy "admins update tutor scores" on public.tutor_internal_scores for u
 using (exists (select 1 from public.platform_admins a where a.user_id = (select auth.uid()) and a.active = true))
 with check (exists (select 1 from public.platform_admins a where a.user_id = (select auth.uid()) and a.active = true));
 
+drop policy if exists "admins insert tutor scores" on public.tutor_internal_scores;
+create policy "admins insert tutor scores" on public.tutor_internal_scores for insert to authenticated
+with check (exists (select 1 from public.platform_admins a where a.user_id = (select auth.uid()) and a.active = true));
+
 drop policy if exists "admins read parent scores" on public.parent_internal_scores;
 create policy "admins read parent scores" on public.parent_internal_scores for select to authenticated
 using (exists (select 1 from public.platform_admins a where a.user_id = (select auth.uid()) and a.active = true));
@@ -240,6 +244,10 @@ using (exists (select 1 from public.platform_admins a where a.user_id = (select 
 drop policy if exists "admins update parent scores" on public.parent_internal_scores;
 create policy "admins update parent scores" on public.parent_internal_scores for update to authenticated
 using (exists (select 1 from public.platform_admins a where a.user_id = (select auth.uid()) and a.active = true))
+with check (exists (select 1 from public.platform_admins a where a.user_id = (select auth.uid()) and a.active = true));
+
+drop policy if exists "admins insert parent scores" on public.parent_internal_scores;
+create policy "admins insert parent scores" on public.parent_internal_scores for insert to authenticated
 with check (exists (select 1 from public.platform_admins a where a.user_id = (select auth.uid()) and a.active = true));
 
 insert into public.tutor_internal_scores(tutor_id)
