@@ -53,3 +53,9 @@ create policy "public insert tutor profiles" on public.tutor_profiles for insert
 
 create index if not exists parent_requests_created_at_idx on public.parent_requests(created_at desc);
 create index if not exists tutor_profiles_created_at_idx on public.tutor_profiles(created_at desc);
+
+
+-- WhatsApp contact for tutor matching.
+-- Safe to run on the existing project after the initial schema.
+alter table public.tutor_profiles
+  add column if not exists whatsapp text;
