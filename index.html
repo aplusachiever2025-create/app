@@ -70,6 +70,14 @@ button.primary{
 .list-item .tag{font-size:12px; color:var(--accent); background:rgba(201,98,47,0.12); padding:2px 8px; border-radius:999px;}
 .list-item .meta{color:var(--sub); font-size:13px; margin-top:4px;}
 .empty{color:var(--sub); font-size:14px; text-align:center; padding:30px 0;}
+.match-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:15px;margin-bottom:10px;}
+.match-card .match-head{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.match-card .match-name{font-weight:700;font-size:16px;}
+.match-score{font-size:12px;color:var(--accent);background:rgba(201,98,47,0.12);padding:3px 8px;border-radius:999px;white-space:nowrap;}
+.match-reasons{font-size:12px;color:var(--sub);margin-top:7px;line-height:1.5;}
+.match-actions{display:flex;gap:8px;margin-top:10px;}
+.match-actions button{flex:1;padding:9px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;}
+.match-actions button.primary-mini{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
 .section-title{font-size:13px; color:var(--sub); margin:20px 0 8px; text-transform:uppercase; letter-spacing:0.5px;}
 .pill-row{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;}
 .pill{font-size:12px; padding:4px 10px; border:1px solid var(--line); border-radius:999px; color:var(--sub);}
@@ -249,6 +257,9 @@ button.primary{
 
       <button class="primary" onclick="submitParent()">发布找家教需求</button>
     </div>
+
+    <div class="section-title">为你匹配的老师</div>
+    <div id="parent-matches"><div class="empty">发布需求后，系统会根据年级、科目、预算、授课方式和地区等条件匹配老师。</div></div>
 
     <div class="section-title">家长需求</div>
     <div id="parent-list"><div class="empty">家长需求提交后会进入匹配流程，不公开显示个人地址和联系方式。</div></div>
@@ -694,6 +705,7 @@ async function submitParent(){
   const req = {
     id: Date.now(),
     level: document.getElementById('p-level').selectedOptions[0].textContent,
+    levelCode: document.getElementById('p-level').value,
     subject, lang: document.getElementById('p-lang').value,
     postcode, region,
     address: document.getElementById('p-address').value.trim(),
@@ -721,7 +733,9 @@ async function submitParent(){
     toggleParentCustomSubject();
     document.getElementById('p-region-hint').textContent = '';
     await refreshSupabaseData();
-    toast('需求已发布');
+    renderParentMatches(req);
+    document.getElementById('parent-matches').scrollIntoView({behavior:'smooth',block:'start'});
+    toast('需求已发布，正在匹配老师');
   }catch(e){ toast('发布失败，请重试'); }
 }
 
@@ -763,6 +777,104 @@ async function submitTutor(){
   }catch(e){ toast('Submission failed, please try again'); }
 }
 
+function tutorScopeMatches(scope, levelCode, subject){
+  if(!scope || !levelCode) return false;
+  const levels = STAGE_LEVELS[scope.stage] || [];
+  if(!levels.includes(levelCode)) return false;
+  const fromI = levels.indexOf(scope.from), toI = levels.indexOf(scope.to), levelI = levels.indexOf(levelCode);
+  if(fromI === -1 || toI === -1 || levelI === -1) return false;
+  const lo = Math.min(fromI,toI), hi = Math.max(fromI,toI);
+  if(levelI < lo || levelI > hi) return false;
+  if(scope.scopeType === 'ALL_SUBJECTS') return true;
+  if(scope.scopeType === 'SELECTED_SUBJECT') return String(scope.subject||'').toLowerCase() === String(subject||'').toLowerCase();
+  if(scope.scopeType === 'CUSTOM_SUBJECT') return String(scope.customSubject||'').trim().toLowerCase() === String(subject||'').trim().toLowerCase();
+  return false;
+}
+
+function budgetMatches(parentBudget, tutorRate){
+  if(!parentBudget || !tutorRate) return false;
+  if(parentBudget === '$150以上') return tutorRate === '$150+';
+  return parentBudget === tutorRate;
+}
+
+function languageMatches(parentLang, tutorLang){
+  if(!parentLang || parentLang === '不限') return true;
+  const p = String(parentLang).toLowerCase(), t = String(tutorLang||'').toLowerCase();
+  if(p === '英文') return t.includes('english');
+  if(p === '华文') return t.includes('chinese');
+  return t.includes(p);
+}
+
+function modeMatches(parentMode, tutorMode){
+  if(!parentMode || parentMode === '不限') return {ok:true,reason:''};
+  if(parentMode.includes('线上')) return {ok:tutorMode === '仅线上' || tutorMode === '上门+线上均可',reason:'授课方式匹配'};
+  if(parentMode.includes('上门')) return {ok:tutorMode === '上门（可到学生家）' || tutorMode === '上门+线上均可',reason:'授课方式匹配'};
+  return {ok:true,reason:''};
+}
+
+function genderMatches(parentGender, tutorGender){
+  if(!parentGender || parentGender === '不限') return {ok:true,reason:''};
+  const wanted = parentGender === '女老师' ? '女' : '男';
+  return {ok:tutorGender === wanted,reason:'性别偏好匹配'};
+}
+
+function regionMatches(parentMode, parentRegion, tutorRegions){
+  if(parentMode === '线上 Online' || parentMode === '不限') return {ok:true,reason:''};
+  return {ok:Array.isArray(tutorRegions) && tutorRegions.includes(parentRegion),reason:'服务区域匹配'};
+}
+
+function timeslotMatches(parentSlot, tutorSlots){
+  if(!parentSlot || parentSlot === '灵活' || !Array.isArray(tutorSlots) || !tutorSlots.length) return {ok:true,reason:''};
+  const map = {'平日放学后':['Weekday afternoons','Weekday evenings'],'平日晚上':['Weekday evenings'],'周末白天':['Weekend daytime'],'周末晚上':['Weekend evenings']};
+  const wanted = map[parentSlot] || [];
+  return {ok:wanted.some(x => tutorSlots.includes(x)),reason:'时间匹配'};
+}
+
+function tutorTypeMatches(parentType, tutorCred){
+  if(!parentType || parentType === '不限') return {ok:true,reason:''};
+  const c = String(tutorCred||'');
+  let ok = true;
+  if(parentType.includes('MOE')) ok = c.includes('MOE');
+  else if(parentType.includes('全职')) ok = c.includes('Full-time');
+  else if(parentType.includes('大学生')) ok = c.includes('Undergraduate');
+  return {ok,reason:'老师类型匹配'};
+}
+
+function getTutorMatches(req){
+  return (tutorDocs||[]).map(t => {
+    const scopes = Array.isArray(t.scopes) ? t.scopes : [];
+    if(!scopes.some(s => tutorScopeMatches(s, req.levelCode, req.subject))) return null;
+    const reasons = ['年级+科目匹配'];
+    let score = 50;
+    if(!budgetMatches(req.budget,t.rate)) return null;
+    score += 15; reasons.push('预算匹配');
+    const gm = genderMatches(req.gender,t.gender); if(!gm.ok) return null; if(gm.reason){score+=8;reasons.push(gm.reason);}
+    const mm = modeMatches(req.mode,t.mode); if(!mm.ok) return null; if(mm.reason){score+=8;reasons.push(mm.reason);}
+    const rm = regionMatches(req.mode,req.region,t.regions); if(!rm.ok) return null; if(rm.reason){score+=7;reasons.push(rm.reason);}
+    if(!languageMatches(req.lang,t.lang)) return null; if(req.lang !== '不限'){score+=5;reasons.push('语言匹配');}
+    const tm = timeslotMatches(req.timeslot,t.timeslots); if(tm.ok && tm.reason){score+=5;reasons.push(tm.reason);}
+    const typ = tutorTypeMatches(req.tutortype,t.cred); if(typ.ok && typ.reason){score+=5;reasons.push(typ.reason);}
+    return {t,score,reasons};
+  }).filter(Boolean).sort((a,b)=>b.score-a.score);
+}
+
+function renderParentMatches(req){
+  const el = document.getElementById('parent-matches');
+  if(!el) return;
+  const matches = getTutorMatches(req).slice(0,8);
+  if(!matches.length){el.innerHTML='<div class="empty">暂时没有完全符合条件的老师。可以尝试把预算、地区、性别或授课方式放宽一些。</div>';return;}
+  el.innerHTML = matches.map(({t,score,reasons}) => {
+    const card = '<div class="match-card">' +
+      '<div class="match-head"><span class="match-name">' + escapeHtml(t.name) + '</span><span class="match-score">匹配度 ' + Math.min(score,100) + '%</span></div>' +
+      '<div class="meta">' + escapeHtml(formatTutorScopes(t.scopes)) + '</div>' +
+      '<div class="meta">' + escapeHtml(t.rate||'-') + '/小时 · ' + escapeHtml(t.cred||'') + ' · ' + escapeHtml(t.mode||'') + '</div>' +
+      '<div class="meta">服务区域：' + ((t.regions||[]).map(escapeHtml).join(' / ') || '未填写') + '</div>' +
+      '<div class="match-reasons">匹配原因：' + reasons.map(escapeHtml).join(' · ') + '</div>' +
+      '<div class="match-actions"><button type="button" onclick="window.__switchTab(\'browse\')">查看老师</button><button type="button" class="primary-mini" onclick="toast(\'下一步可接入 WhatsApp / 联系老师功能\')">联系老师</button></div>' +
+      '</div>';
+    return card;
+  }).join('');
+}
 function renderParentList(){
   const list = parentDocs;
   const el = document.getElementById('parent-list');
