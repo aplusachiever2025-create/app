@@ -42,13 +42,11 @@ create table if not exists public.tutor_profiles (
 alter table public.parent_requests enable row level security;
 alter table public.tutor_profiles enable row level security;
 
-drop policy if exists "public read parent requests" on public.parent_requests;
 drop policy if exists "public insert parent requests" on public.parent_requests;
 drop policy if exists "public read tutor profiles" on public.tutor_profiles;
 drop policy if exists "public insert tutor profiles" on public.tutor_profiles;
 
 -- Public demo phase. Tighten these policies after adding user accounts/auth.
-create policy "public read parent requests" on public.parent_requests for select using (true);
 create policy "public insert parent requests" on public.parent_requests for insert with check (true);
 create policy "public read tutor profiles" on public.tutor_profiles for select using (true);
 create policy "public insert tutor profiles" on public.tutor_profiles for insert with check (true);
