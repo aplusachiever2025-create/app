@@ -1,1 +1,43 @@
-<!doctype html><html lang=zh><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Tutor SmartMatch · 运营驾驶舱</title><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="supabase-config.js"></script><style>body{margin:0;background:#f6f4f1;font:14px Arial;color:#222}header,main{max-width:1200px;margin:auto}header{padding:18px}main{padding:10px}.g{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}.k,.c{background:#fff;border:1px solid #ddd;border-radius:12px;padding:12px;margin:8px 0}.k{cursor:pointer}.k b{display:block;font-size:24px}.m,small{color:#777;font-size:12px}.b{display:inline-block;padding:4px 8px;border-radius:99px;background:#eee;margin-left:8px}button{padding:8px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer}@media(max-width:800px){.g{grid-template-columns:repeat(3,1fr)}}@media(max-width:500px){.g{grid-template-columns:1fr 1fr}}</style><header><b>📊 Tutor SmartMatch · 运营驾驶舱</b><div class=m>逾期 → 今天 → 未来7天 → 高风险</div></header><main><div id=msg class=c>正在读取管理员会话…</div><section id=app class=hide><div class=c><b id=me></b><button onclick=load() style=float:right>刷新</button></div><div id=ks class=g></div><div class=c><button onclick="setF('all')">全部</button> <button onclick="setF('overdue')">🔴逾期</button> <button onclick="setF('today')">🟠今天</button> <button onclick="setF('next7')">📅7天</button> <button onclick="setF('risk')">⚠️高风险</button></div><div id=list></div></section></main><script src=ops.js></script></html>
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tutor SmartMatch · 运营主管驾驶舱</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="supabase-config.js"></script>
+<style>
+:root{--bg:#f6f4f1;--card:#fff;--ink:#222;--sub:#777;--line:#e3ddd5;--accent:#b85d2c;--ok:#2e7d4f;--warn:#a36b18;--red:#b33a2f}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",Arial,sans-serif}
+header{background:#fff;border-bottom:1px solid var(--line);padding:20px;position:sticky;top:0;z-index:5}header>div,main{max-width:1220px;margin:auto}main{padding:18px}
+h1,h2,h3{margin:0}.sub{color:var(--sub);font-size:12px;margin-top:5px}.toolbar{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:9px}.stat{border:1px solid var(--line);border-radius:12px;padding:13px;min-height:72px}.stat b{display:block;font-size:24px}.stat span{font-size:12px;color:var(--sub)}
+.section-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 11px;cursor:pointer}button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#eee;font-size:12px}.ok{background:#e8f4ed;color:var(--ok)}.warn{background:#fff3d9;color:var(--warn)}.danger{background:#fdebea;color:var(--red)}
+.bar{height:10px;background:#eee;border-radius:99px;overflow:hidden;margin:8px 0}.bar i{display:block;height:100%;background:var(--accent)}
+.row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #eee}.row:last-child{border-bottom:0}
+.two{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}.mini{font-size:12px;color:var(--sub)}.empty{padding:16px;color:var(--sub);text-align:center}
+.hidden{display:none}.click{cursor:pointer}
+@media(max-width:950px){.grid{grid-template-columns:repeat(3,1fr)}.two{grid-template-columns:1fr}}
+@media(max-width:560px){.grid{grid-template-columns:1fr 1fr}.toolbar{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+<header><div><div class="toolbar"><div><h1>📊 Tutor SmartMatch · 运营主管驾驶舱</h1><div class="sub">从“提醒做什么”升级为“衡量整个运营系统做得怎么样” · 新加坡时间</div></div><button onclick="load()">刷新数据</button></div></div></header>
+<main>
+<div id="msg" class="card">正在读取管理员会话…</div>
+<section id="app" class="hidden">
+<div class="card"><div class="toolbar"><div><b id="me"></b><div class="sub">主管视角：效率、积压、跟进质量、转化与人员工作量</div></div><span id="stamp" class="mini"></span></div></div>
+<div class="card"><div class="section-title"><div><h2>🎯 今日运营总览</h2><div class="sub">核心 KPI 一眼判断今天运营是否健康</div></div></div><div id="kpi" class="grid"></div></div>
+<div class="two">
+<div class="card"><div class="section-title"><div><h2>📈 成交转化漏斗</h2><div class="sub">当前撮合案例各阶段数量与阶段转化率</div></div></div><div id="funnel"></div></div>
+<div class="card"><div class="section-title"><div><h2>📥 家长 / 老师待处理</h2><div class="sub">按当前开放与进行中的业务量统计</div></div></div><div id="pending"></div></div>
+</div>
+<div class="two">
+<div class="card"><div class="section-title"><div><h2>👥 每个管理员的跟进量</h2><div class="sub">今日新增跟进、今日完成、当前未完成任务</div></div></div><div id="admins"></div></div>
+<div class="card"><div class="section-title"><div><h2>⏱️ 连续未跟进案例</h2><div class="sub">开放案例中，超过 3 天没有有效联系且没有下一步任务</div></div></div><div id="stale"></div></div>
+</div>
+<div class="card"><div class="section-title"><div><h2>🔔 跟进效率</h2><div class="sub">点击卡片可快速定位待跟进任务</div></div><div><button onclick="setFilter('all')">全部</button> <button onclick="setFilter('overdue')">逾期</button> <button onclick="setFilter('today')">今天</button> <button onclick="setFilter('next7')">7天</button> <button onclick="setFilter('risk')">高风险</button></div></div><div id="tasks"></div></div>
+</section>
+</main><script src="ops.js"></script>
+</body></html>
