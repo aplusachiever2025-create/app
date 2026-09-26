@@ -440,7 +440,7 @@ function updateParentSubjects(){
   const level = document.getElementById('p-level').value;
   const subjects = MOE_SUBJECTS[level] || [];
   const sel = document.getElementById('p-subject');
-  sel.innerHTML = subjects.map(s => \`<option value="\${escapeAttr(s)}">\${escapeHtml(s)}</option>\`).join('') +
+  sel.innerHTML = subjects.map(s => `<option value="${escapeAttr(s)}">${escapeHtml(s)}</option>`).join('') +
     '<option value="__OTHER__">其他 / Other</option>';
   toggleParentCustomSubject();
 }
@@ -476,18 +476,18 @@ function addTutorScope(){
   const row = document.createElement('div');
   row.className = 'scope-row';
   row.dataset.scopeId = id;
-  row.innerHTML = \`
+  row.innerHTML = `
     <div class="scope-head">
-      <span>教学范围 #\${id}</span>
-      <button type="button" class="remove-scope" onclick="removeTutorScope(\${id})">×</button>
+      <span>教学范围 #${id}</span>
+      <button type="button" class="remove-scope" onclick="removeTutorScope(${id})">×</button>
     </div>
     <div class="scope-grid">
-      <select class="scope-stage" onchange="refreshTutorScope(\${id})"></select>
-      <select class="scope-from" onchange="refreshTutorScopeSubjects(\${id})"></select>
+      <select class="scope-stage" onchange="refreshTutorScope(${id})"></select>
+      <select class="scope-from" onchange="refreshTutorScopeSubjects(${id})"></select>
     </div>
     <div class="scope-grid">
-      <select class="scope-to" onchange="refreshTutorScopeSubjects(\${id})"></select>
-      <select class="scope-type" onchange="refreshTutorScopeSubjects(\${id})">
+      <select class="scope-to" onchange="refreshTutorScopeSubjects(${id})"></select>
+      <select class="scope-type" onchange="refreshTutorScopeSubjects(${id})">
         <option value="SELECTED">选择科目</option>
         <option value="ALL">全部科目</option>
         <option value="CUSTOM">其他 / 自定义</option>
@@ -495,28 +495,28 @@ function addTutorScope(){
     </div>
     <div class="scope-subjects"></div>
     <input class="scope-custom" placeholder="填写自定义科目，例如 Robotics / Coding" style="display:none;">
-  \`;
+  `;
   document.getElementById('t-scopes').appendChild(row);
   const stageSel = row.querySelector('.scope-stage');
-  stageSel.innerHTML = Object.keys(STAGE_LEVELS).map(s => \`<option value="\${s}">\${STAGE_LABELS[s]}</option>\`).join('');
+  stageSel.innerHTML = Object.keys(STAGE_LEVELS).map(s => `<option value="${s}">${STAGE_LABELS[s]}</option>`).join('');
   refreshTutorScope(id);
 }
 
 function refreshTutorScope(id){
-  const row = document.querySelector(\`.scope-row[data-scope-id="\${id}"]\`);
+  const row = document.querySelector(`.scope-row[data-scope-id="${id}"]`);
   if(!row) return;
   const stage = row.querySelector('.scope-stage').value;
   const levels = STAGE_LEVELS[stage] || [];
   const from = row.querySelector('.scope-from');
   const to = row.querySelector('.scope-to');
-  from.innerHTML = levels.map(v => \`<option value="\${v}">\${v}</option>\`).join('');
-  to.innerHTML = levels.map(v => \`<option value="\${v}">\${v}</option>\`).join('');
+  from.innerHTML = levels.map(v => `<option value="${v}">${v}</option>`).join('');
+  to.innerHTML = levels.map(v => `<option value="${v}">${v}</option>`).join('');
   if(levels.length) to.selectedIndex = levels.length - 1;
   refreshTutorScopeSubjects(id);
 }
 
 function refreshTutorScopeSubjects(id){
-  const row = document.querySelector(\`.scope-row[data-scope-id="\${id}"]\`);
+  const row = document.querySelector(`.scope-row[data-scope-id="${id}"]`);
   if(!row) return;
   const stage = row.querySelector('.scope-stage').value;
   const from = row.querySelector('.scope-from').value;
@@ -535,11 +535,11 @@ function refreshTutorScopeSubjects(id){
     return;
   }
   custom.style.display = 'none';
-  box.innerHTML = subjects.map(s => \`<label class="pill"><input type="checkbox" class="scope-subject" value="\${escapeAttr(s)}" style="width:auto;"> \${escapeHtml(enPart(s))}</label>\`).join('');
+  box.innerHTML = subjects.map(s => `<label class="pill"><input type="checkbox" class="scope-subject" value="${escapeAttr(s)}" style="width:auto;"> ${escapeHtml(enPart(s))}</label>`).join('');
 }
 
 function removeTutorScope(id){
-  const row = document.querySelector(\`.scope-row[data-scope-id="\${id}"]\`);
+  const row = document.querySelector(`.scope-row[data-scope-id="${id}"]`);
   if(row) row.remove();
   if(!document.querySelector('.scope-row')) addTutorScope();
 }
@@ -764,10 +764,10 @@ document.getElementById('f-subject').addEventListener('change', renderTutorBrows
 function formatTutorScopes(scopes){
   if(!Array.isArray(scopes) || !scopes.length) return '未填写教学科目';
   return scopes.map(s => {
-    const range = s.from && s.to ? \`\${s.from}-\${s.to}\` : '';
-    if(s.scopeType === 'ALL_SUBJECTS') return \`\${range} 全科\`;
-    if(s.scopeType === 'CUSTOM_SUBJECT') return \`\${range} \${s.customSubject || '自定义科目'}\`;
-    return \`\${range} \${s.subject || ''}\`;
+    const range = s.from && s.to ? `${s.from}-${s.to}` : '';
+    if(s.scopeType === 'ALL_SUBJECTS') return `${range} 全科`;
+    if(s.scopeType === 'CUSTOM_SUBJECT') return `${range} ${s.customSubject || '自定义科目'}`;
+    return `${range} ${s.subject || ''}`;
   }).join(' · ');
 }
 
