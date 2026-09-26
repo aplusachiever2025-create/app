@@ -1,6 +1,6 @@
 const s=supabase.createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey);
 let C=[],N=[],A=[],F='all',P=[],T=[];
-const E=x=>String(x??'').replace(/[&<>\"]/g,z=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[z]));
+const E=x=>String(x??'').replace(/[&<>"']/g,z=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[z]));
 const SG=x=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Singapore'}).format(new Date(x));
 const dayDiff=x=>Math.round((new Date(SG(x)+'T00:00:00+08:00')-new Date(SG(Date.now())+'T00:00:00+08:00'))/864e5);
 const daysSince=x=>x?Math.max(0,Math.floor((Date.now()-new Date(x).getTime())/864e5)):999;
@@ -26,7 +26,7 @@ function renderKpi(){
  kpi.innerHTML=[['🎯',rate===null?'—':rate+'%','今日完成率'],['✓',completedToday.length,'今日完成跟进'],['🔴',overdue,'当前逾期未跟进'],['⚠️',risk,'连续未跟进案例'],['🔄',activeCases,'进行中撮合'],['💰',confirmed,'累计已成交案例']].map(x=>'<div class="stat"><b>'+x[0]+' '+x[1]+'</b><span>'+x[2]+'</span></div>').join('');
 }
 function renderFunnel(){
- const total=C.length||1,steps=[['new','有兴趣',C.filter(c=>c.status==='new').length],['both_interested','双方有兴趣',C.filter(c=>c.status==='both_interested').length],['contacting','沟通中',C.filter(c=>c.status==='contacting').length],['trial','试听中',C.filter(c=>c.status==='trial').length],['confirmed','已成交',C.filter(c=>c.status==='confirmed').length]],base=Math.max(1,steps.reduce((s,x)=>s+x[2],0));
+ const steps=[['new','有兴趣',C.filter(c=>c.status==='new').length],['both_interested','双方有兴趣',C.filter(c=>c.status==='both_interested').length],['contacting','沟通中',C.filter(c=>c.status==='contacting').length],['trial','试听中',C.filter(c=>c.status==='trial').length],['confirmed','已成交',C.filter(c=>c.status==='confirmed').length]],base=Math.max(1,steps.reduce((s,x)=>s+x[2],0));
  funnel.innerHTML=steps.map((x,i)=>{const pct=Math.round(x[2]/base*100),prev=i?steps[i-1][2]:x[2],cv=i&&prev?Math.round(x[2]/prev*100):100;return '<div class="row"><div style="min-width:125px"><b>'+x[1]+'</b><div class="mini">阶段转化 '+cv+'%</div></div><div style="flex:1"><div class="bar"><i style="width:'+Math.min(100,pct)+'%"></i></div></div><b>'+x[2]+'</b></div>'}).join('')+'<div class="mini" style="margin-top:10px">总成交率：'+Math.round(steps[4][2]/base*100)+'% · 未成交 '+C.filter(c=>c.status==='not_concluded').length+' · 已取消 '+C.filter(c=>c.status==='cancelled').length+'</div>';
 }
 function renderPending(){
