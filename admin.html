@@ -524,7 +524,7 @@ function fmtTime(v){if(!v)return '-';const d=new Date(v);return isNaN(d)?v:d.toL
 async function loadCaseTimeline(id){
   const el=document.getElementById('case-timeline');if(!el)return;
   el.innerHTML='<div class="meta">正在读取时间线...</div>';
-  const {data,error}=await sb.from('match_case_notes').select('*,platform_admins(display_name)').eq('match_case_id',id).order('created_at',{ascending:false});
+  const {data,error}=await sb.from('match_case_notes').select('*').eq('match_case_id',id).order('created_at',{ascending:false});
   if(error){el.innerHTML='<div class="meta">时间线读取失败：'+esc(error.message)+'</div>';return}
   const rows=data||[];
   if(!rows.length){el.innerHTML='<div class="meta">还没有记录。第一次联系家长或老师后，就在这里留下记录。</div>';return}
