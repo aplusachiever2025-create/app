@@ -87,6 +87,8 @@ button.primary{
 }
 .toast.show{opacity:1;}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
 </head>
 <body>
 
@@ -422,6 +424,7 @@ const K_REQUESTS = "parents";
 let db = null;
 let parentDocs = [];
 let tutorDocs = [];
+let supabaseClient = null;
 
 // 新加坡MOE课程大纲：各年级对应科目（简化整理，供家教平台参考）
 const MOE_SUBJECTS = {
@@ -601,27 +604,37 @@ function toast(msg){
 }
 
 async function initDb(){
-  // Static GitHub Pages build: the old claude.use('db') runtime is unavailable here.
-  db = null;
-  return;
-  /* legacy database code intentionally disabled until Supabase is connected
-  if(!db){
-    toast('数据库暂时无法连接，请刷新重试');
-    document.getElementById('parent-list').innerHTML = '<div class="empty">数据库未连接</div>';
-    document.getElementById('tutor-self-list').innerHTML = '<div class="empty">Not connected to the database</div>';
+  const cfg = window.SUPABASE_CONFIG || {};
+  if(!window.supabase || !cfg.url || !cfg.anonKey || cfg.url.includes('YOUR_') || cfg.anonKey.includes('YOUR_')){
+    db = null;
+    document.getElementById('parent-list').innerHTML = '<div class="empty">数据库尚未配置。请先完成 Supabase 设置。</div>';
+    document.getElementById('tutor-self-list').innerHTML = '<div class="empty">Supabase database is not configured yet.</div>';
     return;
   }
-  db.collection(K_REQUESTS).orderBy('id','desc').onSnapshot(snap=>{
-    parentDocs = snap.docs.map(d => ({ docId:d.id, ...d.data() }));
-    renderParentList();
-  }, err => { console.error(err); toast('家长需求同步失败'); });
+  try{
+    supabaseClient = window.supabase.createClient(cfg.url, cfg.anonKey);
+    db = supabaseClient;
+    await refreshSupabaseData();
+  }catch(err){
+    console.error(err);
+    db = null;
+    toast('数据库连接失败');
+  }
+}
 
-  db.collection(K_TUTORS).orderBy('id','desc').onSnapshot(snap=>{
-    tutorDocs = snap.docs.map(d => ({ docId:d.id, ...d.data() }));
-    renderTutorSelfList();
-    renderTutorBrowse();
-  }, err => { console.error(err); toast('Failed to sync tutor profiles'); });
-  */
+async function refreshSupabaseData(){
+  if(!supabaseClient) return;
+  const [parents, tutors] = await Promise.all([
+    supabaseClient.from('parent_requests').select('*').order('created_at',{ascending:false}),
+    supabaseClient.from('tutor_profiles').select('*').order('created_at',{ascending:false})
+  ]);
+  if(parents.error) throw parents.error;
+  if(tutors.error) throw tutors.error;
+  parentDocs = parents.data || [];
+  tutorDocs = tutors.data || [];
+  renderParentList();
+  renderTutorSelfList();
+  renderTutorBrowse();
 }
 
 // 新加坡邮政分区 -> 邮政区（District）-> 大区，简化版，供匹配参考
@@ -697,12 +710,20 @@ async function submitParent(){
     tutortype: document.getElementById('p-tutortype').value
   };
   try{
-    await db.collection(K_REQUESTS).add(req);
+    const { error } = await supabaseClient.from('parent_requests').insert({
+      level: req.level, subject: req.subject, lang: req.lang, postcode: req.postcode,
+      region: req.region, address: req.address, budget: req.budget, freq: req.freq,
+      duration: req.duration, timeslot: req.timeslot, goal: req.goal, gender: req.gender,
+      mode: req.mode, tutortype: req.tutortype, notes: document.getElementById('p-notes').value.trim()
+    });
+    if(error) throw error;
     document.getElementById('p-postcode').value = '';
     document.getElementById('p-address').value = '';
     document.getElementById('p-custom-subject').value = '';
+    document.getElementById('p-notes').value = '';
     toggleParentCustomSubject();
     document.getElementById('p-region-hint').textContent = '';
+    await refreshSupabaseData();
     toast('需求已发布');
   }catch(e){ toast('发布失败，请重试'); }
 }
@@ -728,12 +749,19 @@ async function submitTutor(){
     bio: document.getElementById('t-bio').value.trim()
   };
   try{
-    await db.collection(K_TUTORS).add(tutor);
+    const { error } = await supabaseClient.from('tutor_profiles').insert({
+      name: tutor.name, scopes: tutor.scopes, level: tutor.level, cred: tutor.cred,
+      rate: tutor.rate, gender: tutor.gender, mode: tutor.mode, lang: tutor.lang,
+      exp: tutor.exp, trial: tutor.trial, regions: tutor.regions, timeslots: tutor.timeslots,
+      bio: tutor.bio
+    });
+    if(error) throw error;
     document.getElementById('t-name').value = '';
     document.getElementById('t-bio').value = '';
     document.getElementById('t-scopes').innerHTML = '';
     addTutorScope();
     document.querySelectorAll('#t-regions input, #t-timeslots input').forEach(c=>c.checked=false);
+    await refreshSupabaseData();
     toast('Profile submitted');
   }catch(e){ toast('Submission failed, please try again'); }
 }
