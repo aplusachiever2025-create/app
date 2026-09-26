@@ -111,14 +111,33 @@ function openTutorWhatsApp(tutorId){
 async function openWhatsApp(target,number,caseId){
   const d=normalizeWhatsApp(number);
   if(!d){alert('没有可用的 WhatsApp 号码');return;}
-  const text=encodeURIComponent(target==='parent'?'您好，这里是 SG Tutor Match，想跟进您的家教需求。':'您好，这里是 SG Tutor Match，想跟进您的家教资料与 SmartMatch。');
-  window.open('https://wa.me/'+d+'?text='+text,'_blank','noopener');
+  const message=target==='parent'?'您好，这里是 SG Tutor Match，想跟进您的家教需求。':'您好，这里是 SG Tutor Match，想跟进您的家教资料与 SmartMatch。';
+  const url='https://wa.me/'+d+'?text='+encodeURIComponent(message);
+
+  // 用真实 <a> 点击打开，避免部分浏览器拦截动态 window.open。
+  const a=document.createElement('a');
+  a.href=url;
+  a.target='_blank';
+  a.rel='noopener noreferrer';
+  a.style.display='none';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
   try{
     const {data:{user}}=await sb.auth.getUser();
     if(user&&caseId){
-      await sb.from('match_case_notes').insert({match_case_id:caseId,admin_user_id:user.id,note_type:'whatsapp',contact_target:target,note:'通过后台 WhatsApp 联系',next_action:null});
+      await sb.from('match_case_notes').insert({
+        match_case_id:caseId,
+        admin_user_id:user.id,
+        note_type:'whatsapp',
+        contact_target:target,
+        note:'通过后台 WhatsApp 联系',
+        next_action:null
+      });
       await sb.from('match_cases').update({last_contacted_at:new Date().toISOString()}).eq('id',caseId);
-      await loadFollowups(); await loadCases();
+      await loadFollowups();
+      await loadCases();
     }
   }catch(e){console.warn('WhatsApp log failed',e);}
 }
