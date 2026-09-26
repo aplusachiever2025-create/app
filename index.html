@@ -816,7 +816,7 @@ async function submitTutor(){
       rate: tutor.rate, gender: tutor.gender, mode: tutor.mode, lang: tutor.lang,
       exp: tutor.exp, trial: tutor.trial, regions: tutor.regions, timeslots: tutor.timeslots,
       bio: tutor.bio, contact_email: tutor.contact_email, contact_phone: tutor.contact_phone,
-      whatsapp: tutor.whatsapp
+      whatsapp: tutor.whatsapp, tutor_status:'pending', review_status:'pending'
     }).select('id').single();
     if(error) throw error;
     currentTutorId = data.id;
