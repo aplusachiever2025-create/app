@@ -56,7 +56,7 @@ main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);bo
     </div>
     <div id="warroom-list" style="margin-top:10px"></div>
   </div>
-  <div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h2 style="margin:0">待处理撮合</h2><div class="meta">优先处理双方有兴趣的案例</div></div><div class="actions" style="margin-top:0"><button onclick="filterCases('all')">全部</button><button onclick="filterCases('both_interested')">双方有兴趣</button><button onclick="filterCases('contacting')">沟通中</button><button onclick="filterCases('trial')">试听中</button></div></div></div>
+  <div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h2 style="margin:0">待处理撮合</h2><div class="meta">优先处理 SmartMatch 已建立的撮合案例</div></div><div class="actions" style="margin-top:0"><button onclick="filterCases('all')">全部</button><button onclick="filterCases('matched')">已配对</button><button onclick="filterCases('contacting')">沟通中</button><button onclick="filterCases('trial')">试听中</button><button onclick="filterCases('pending_confirmation')">待确认</button></div></div></div>
   <div class="note">佣金规则：确认成交时自动计算 = 实际每小时课费 × 单次课时 × 2。内部等级只用于平台运营，不会显示给家长或老师。</div>
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
@@ -90,6 +90,26 @@ main{max-width:1100px;margin:0 auto;padding:20px}.card{background:var(--card);bo
 const sb=supabase.createClient(window.SUPABASE_CONFIG.url,window.SUPABASE_CONFIG.anonKey);
 let cases=[];let caseFilter='all';let directoryCache={parents:[],tutors:[]};let followups=[];let warFilter='all';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function normalizeWhatsApp(value){
+  let d=String(value||'').replace(/\D/g,'');
+  if(!d)return '';
+  if(d.length===8)d='65'+d;
+  return d;
+}
+async function openWhatsApp(target,number,caseId){
+  const d=normalizeWhatsApp(number);
+  if(!d){alert('没有可用的 WhatsApp 号码');return;}
+  const text=encodeURIComponent(target==='parent'?'您好，这里是 SG Tutor Match，想跟进您的家教需求。':'您好，这里是 SG Tutor Match，想跟进您的家教资料与 SmartMatch。');
+  window.open('https://wa.me/'+d+'?text='+text,'_blank','noopener');
+  try{
+    const {data:{user}}=await sb.auth.getUser();
+    if(user&&caseId){
+      await sb.from('match_case_notes').insert({match_case_id:caseId,admin_user_id:user.id,note_type:'whatsapp',contact_target:target,note:'通过后台 WhatsApp 联系',next_action:null});
+      await sb.from('match_cases').update({last_contacted_at:new Date().toISOString()}).eq('id',caseId);
+      await loadFollowups(); await loadCases();
+    }
+  }catch(e){console.warn('WhatsApp log failed',e);}
+}
 function msg(s){document.getElementById('login-msg').textContent=s}
 async function login(){
   const email=document.getElementById('email').value.trim(),password=document.getElementById('password').value;
@@ -138,7 +158,7 @@ async function loadFollowups(){
     '<div class="stat" style="cursor:pointer" onclick="showFollowups(\'tomorrow\')"><b>🟠 '+counts.tomorrow+'</b><span>明天要跟进</span></div>';
   renderFollowups(followups);
 }
-function followStatusText(s){return {new:'一方有兴趣',both_interested:'双方有兴趣',contacting:'平台沟通中',trial:'已安排试听',confirmed:'已确认成交',not_concluded:'未成交',cancelled:'已取消'}[s]||s}
+function followStatusText(s){return {new:'新需求',matched:'已配对',contacting:'平台沟通中',trial:'已安排试听',pending_confirmation:'待确认',confirmed:'已确认成交',ongoing:'进行中',not_concluded:'未成交',cancelled:'已取消'}[s]||s}
 function renderFollowups(rows){
   const el=document.getElementById('followup-list');
   if(!rows.length){el.innerHTML='<div class="meta">🎉 暂时没有待跟进事项。</div>';return}
@@ -167,7 +187,7 @@ async function completeFollowup(id){
 
 function sgDayKey(v){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Singapore',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(v))}
 function sgDayDiff(v){const a=new Date(sgDayKey(new Date())+'T00:00:00+08:00'),b=new Date(sgDayKey(v)+'T00:00:00+08:00');return Math.round((b-a)/86400000)}
-function warStatus(s){return {new:'一方有兴趣',both_interested:'双方有兴趣',contacting:'沟通中',trial:'试听中',confirmed:'已成交',not_concluded:'未成交',cancelled:'已取消'}[s]||s}
+function warStatus(s){return {new:'新需求',matched:'已配对',contacting:'沟通中',trial:'试听中',pending_confirmation:'待确认',confirmed:'已成交',ongoing:'进行中',not_concluded:'未成交',cancelled:'已取消'}[s]||s}
 function warRisk(c){if(['confirmed','cancelled','not_concluded'].includes(c.status))return false;const open=followups.some(n=>n.match_case_id===c.id);const stale=c.last_contacted_at?Math.floor((Date.now()-new Date(c.last_contacted_at).getTime())/86400000):99;return !open&&stale>=3}
 function loadWarRoom(){renderWarRoom()}
 function renderWarRoom(){
@@ -184,7 +204,7 @@ function renderStats(){
   const today=new Date().toISOString().slice(0,10),month=new Date().toISOString().slice(0,7);
   const newParents=parents.filter(x=>String(x.created_at||'').slice(0,10)===today).length;
   const newTutors=tutors.filter(x=>String(x.created_at||'').slice(0,10)===today).length;
-  const interested=cases.filter(x=>x.status==='both_interested').length;
+  const interested=cases.filter(x=>x.status==='matched').length;
   const contacting=cases.filter(x=>x.status==='contacting').length;
   const trial=cases.filter(x=>x.status==='trial').length;
   const confirmed=cases.filter(x=>x.status==='confirmed').length;
@@ -192,7 +212,7 @@ function renderStats(){
   document.getElementById('stats').innerHTML=
     '<div class="stat"><b>'+newParents+'</b><span>今日新家长</span></div>'+
     '<div class="stat"><b>'+newTutors+'</b><span>今日新老师</span></div>'+
-    '<div class="stat"><b>'+interested+'</b><span>双方有兴趣</span></div>'+
+    '<div class="stat"><b>'+interested+'</b><span>已配对</span></div>'+
     '<div class="stat"><b>'+contacting+'</b><span>沟通中</span></div>'+
     '<div class="stat"><b>'+trial+'</b><span>试听中</span></div>'+
     '<div class="stat"><b>'+confirmed+'</b><span>已成交</span></div>'+
@@ -272,12 +292,12 @@ function showModal(title,body){document.getElementById('modal-title').textConten
 function item(label,value){return '<div class="detail-item"><b>'+esc(label)+'</b><div>'+esc(value||'-')+'</div></div>';}
 function showParent(id){
   const p=directoryCache.parents.find(x=>x.id===id);if(!p)return;
-  const fields=[['状态',p.request_status==='active'?'开放中':p.request_status==='closed'?'已关闭':'已移除'],['孩子年级',p.level],['科目',p.subject],['语言',p.lang],['地区',p.region],['邮编',p.postcode],['地址',p.address],['预算',p.budget],['频率',p.freq],['每次课时',p.duration],['时间',p.timeslot],['学习目标',p.goal],['老师性别要求',p.gender],['授课方式',p.mode],['老师类型',p.tutortype],['家长称呼',p.contact_name],['电话',p.contact_phone],['Email',p.contact_email],['微信',p.contact_wechat],['备注',p.notes],['创建时间',p.created_at]];
+  const fields=[['状态',p.request_status==='active'?'开放中':p.request_status==='closed'?'已关闭':'已移除'],['孩子年级',p.level],['科目',p.subject],['语言',p.lang],['地区',p.region],['邮编',p.postcode],['地址',p.address],['预算',p.budget],['频率',p.freq],['每次课时',p.duration],['时间',p.timeslot],['学习目标',p.goal],['老师性别要求',p.gender],['授课方式',p.mode],['老师类型',p.tutortype],['家长称呼',p.contact_name],['电话',p.contact_phone],['WhatsApp',p.contact_whatsapp],['Email',p.contact_email],['微信',p.contact_wechat],['备注',p.notes],['创建时间',p.created_at]];
   showModal('家长需求 #'+id,'<div class="detail-grid">'+fields.map(x=>item(x[0],x[1])).join('')+'</div>');
 }
 function showTutor(id){
   const t=directoryCache.tutors.find(x=>x.id===id);if(!t)return;
-  const fields=[['状态',t.tutor_status==='active'?'接单中':'已移除'],['姓名',t.name],['教学范围',Array.isArray(t.scopes)?t.scopes.join('、'):t.scopes],['年级',t.level],['学历/资质',t.cred],['收费',t.rate],['性别',t.gender],['授课方式',t.mode],['语言',t.lang],['经验',t.exp],['试听',t.trial],['服务区域',Array.isArray(t.regions)?t.regions.join('、'):t.regions],['可用时间',Array.isArray(t.timeslots)?t.timeslots.join('、'):t.timeslots],['电话',t.contact_phone],['WhatsApp',t.whatsapp],['Email',t.contact_email],['个人介绍',t.bio],['创建时间',t.created_at]];
+  const fields=[['状态',t.tutor_status==='active'?'接单中':'已移除'],['审核',t.review_status||'pending'],['Tutor ID',t.public_id],['姓名',t.name],['教学范围',Array.isArray(t.scopes)?t.scopes.join('、'):t.scopes],['年级',t.level],['学历/资质',t.cred],['收费',t.rate],['性别',t.gender],['授课方式',t.mode],['语言',t.lang],['经验',t.exp],['试听',t.trial],['服务区域',Array.isArray(t.regions)?t.regions.join('、'):t.regions],['可用时间',Array.isArray(t.timeslots)?t.timeslots.join('、'):t.timeslots],['电话',t.contact_phone],['WhatsApp',t.whatsapp],['Email',t.contact_email],['履历',t.resume_name||t.resume_path],['个人介绍',t.bio],['创建时间',t.created_at]];
   showModal('老师资料 #'+id,'<div class="detail-grid">'+fields.map(x=>item(x[0],x[1])).join('')+'</div>');
 }
 async function showCase(id){
