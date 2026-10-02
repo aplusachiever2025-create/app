@@ -11,16 +11,21 @@ concurrency:
 jobs:
   crawl:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install requests beautifulsoup4
-      - name: Crawl allowed public links
+      - run: pip install requests beautifulsoup4 lxml
+      - name: Crawl allowed public links (metadata only)
         run: python scripts/paper_crawler.py
-      - name: Commit index if changed
+      - name: Sync index metadata to Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/sync_papers_to_supabase.py
+      - name: Commit static fallback index if changed
         run: |
           if ! git diff --quiet -- exam-papers/papers.json; then
             git config user.name "github-actions[bot]"
