@@ -7,7 +7,7 @@ import requests
 from bs4 import BeautifulSoup
 
 UA="SGPaperIndexBot/1.0 (GitHub Pages public index; contact via repository issues)"
-DELAY=1.5; MAX_PAGES_PER_SITE=12000; MAX_DEPTH=12
+DELAY=0.6; MAX_PAGES_PER_SITE=180; MAX_DEPTH=5; REQUEST_TIMEOUT=10; MAX_SITEMAPS=20
 SITES={
  "sgexam":{"seeds":["https://sgexam.com/"],"hosts":{"sgexam.com","www.sgexam.com"},"allow":[r"^/$",r"^/primary-",r"^/subject/",r"^/year/",r"^/secondary/",r"^/gce/",r"^/paper/"],"deny":[r"^/wp-admin",r"^/wp-json",r"^/feed"]},
  "sgtestpaper":{"seeds":["https://www.sgtestpaper.com/","https://www.sgtestpaper.com/p6/"],"hosts":{"sgtestpaper.com","www.sgtestpaper.com"},"allow":[r"^/$",r"^/p[1-6]/",r"^/primary/",r"^/secondary/",r"^/gce/",r"^/free/",r"^/20\d{2}/",r"^/worksheet"],"deny":[r"^/shop",r"^/cart",r"^/checkout",r"^/my-account",r"^/wp-admin",r"^/wp-json"]},
@@ -38,28 +38,30 @@ def allowed(u,c):
  return True
 def is_pdf(u,ct=""):
  return "application/pdf" in ct.lower() or urlparse(u).path.lower().endswith(".pdf") or ("drive.google.com" in urlparse(u).netloc and ("/file/d/" in urlparse(u).path or "export=download" in urlparse(u).query))
-def can_fetch(u):
+def can_fetch(u,session):
  p=urlparse(u);root=p.scheme+"://"+p.netloc
  if root not in robots:
-  rp=urllib.robotparser.RobotFileParser();rp.set_url(root+"/robots.txt")
-  try:rp.read();robots[root]=rp
-  except Exception:
-   print("robots unavailable; skipping host",root);robots[root]=False
+  rp=urllib.robotparser.RobotFileParser()
+  try:
+   rr=session.get(root+"/robots.txt",timeout=REQUEST_TIMEOUT);rr.raise_for_status()
+   rp.set_url(root+"/robots.txt");rp.parse(rr.text.splitlines());robots[root]=rp
+  except requests.RequestException:
+   print("robots unavailable; conservatively skipping host",root);robots[root]=False
  return robots[root] is not False and robots[root].can_fetch(UA,u)
 def sitemap_urls(session,root):
  urls=[]
  try:
-  r=session.get(root+"/robots.txt",timeout=18);r.raise_for_status()
+  r=session.get(root+"/robots.txt",timeout=REQUEST_TIMEOUT);r.raise_for_status()
   urls += re.findall(r"(?im)^\\s*Sitemap:\\s*(\\S+)",r.text)
  except requests.RequestException:pass
  urls += [root+"/sitemap.xml",root+"/wp-sitemap.xml",root+"/sitemap_index.xml"]
  seen=set();todo=deque(urls);pages=0
- while todo and pages<80:
+ while todo and pages<MAX_SITEMAPS:
   sm=todo.popleft()
   if sm in seen:continue
   seen.add(sm)
   try:
-   r=session.get(sm,timeout=20);r.raise_for_status()
+   r=session.get(sm,timeout=REQUEST_TIMEOUT);r.raise_for_status()
    if "xml" not in r.headers.get("content-type","").lower() and not r.text.lstrip().startswith("<?xml"):continue
    soup=BeautifulSoup(r.content,"xml");pages+=1
    for loc in soup.find_all("loc"):
@@ -78,13 +80,13 @@ def crawl():
   for item in sitemap_urls(session,root):
    if item.startswith("PAGE:"):
     u=item[5:]
-    if allowed(u,cfg) and u not in seen:seen.add(u);q.append((u,0))
+    if allowed(u,cfg) and u not in seen and len(q)<MAX_PAGES_PER_SITE:seen.add(u);q.append((u,0))
    else:
     found.setdefault(item,meta(unquote(urlparse(item).path.rsplit("/",1)[-1]),item,item,site))
   while q and count<MAX_PAGES_PER_SITE:
    u,depth=q.popleft()
-   if not can_fetch(u):continue
-   try:r=session.get(u,timeout=22,allow_redirects=True);r.raise_for_status()
+   if not can_fetch(u,session):continue
+   try:r=session.get(u,timeout=REQUEST_TIMEOUT,allow_redirects=True);r.raise_for_status()
    except requests.RequestException as e:print("skip",u,str(e)[:160]);continue
    count+=1;ct=r.headers.get("content-type","")
    if is_pdf(r.url,ct):
@@ -99,11 +101,11 @@ def crawl():
     link=clean(urljoin(r.url,a["href"].strip()));anchor=a.get_text(" ",strip=True)
     if is_pdf(link):
      found.setdefault(link,meta(anchor or title,link,r.url,site))
-    elif depth<MAX_DEPTH and link not in seen and allowed(link,cfg):
+    elif depth<MAX_DEPTH and link not in seen and len(q)<MAX_PAGES_PER_SITE and allowed(link,cfg):
      seen.add(link);q.append((link,depth+1))
    time.sleep(DELAY)
-  print(site,"pages",count,"indexed",sum(x["source_site"]==site for x in found.values()))
+  print(site,"pages",count,"queued",len(seen),"indexed",sum(x["source_site"]==site for x in found.values()),flush=True)
  out=sorted(found.values(),key=lambda x:(-int(x.get("year") or 0),x["level"],x["subject"],x["school"],x["title"]))
  with open("exam-papers/papers.json","w",encoding="utf-8") as f:json.dump(out,f,ensure_ascii=False,indent=2)
- print("saved",len(out),"records")
+ print("saved",len(out),"records",flush=True)
 if __name__=="__main__":crawl()
