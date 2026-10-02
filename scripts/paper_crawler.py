@@ -7,7 +7,7 @@ import requests
 from bs4 import BeautifulSoup
 
 UA="SGPaperIndexBot/1.0 (GitHub Pages public index; contact via repository issues)"
-DELAY=1.5; MAX_PAGES_PER_SITE=1800; MAX_DEPTH=7
+DELAY=1.5; MAX_PAGES_PER_SITE=12000; MAX_DEPTH=12
 SITES={
  "sgexam":{"seeds":["https://sgexam.com/"],"hosts":{"sgexam.com","www.sgexam.com"},"allow":[r"^/$",r"^/primary-",r"^/subject/",r"^/year/",r"^/secondary/",r"^/gce/",r"^/paper/"],"deny":[r"^/wp-admin",r"^/wp-json",r"^/feed"]},
  "sgtestpaper":{"seeds":["https://www.sgtestpaper.com/","https://www.sgtestpaper.com/p6/"],"hosts":{"sgtestpaper.com","www.sgtestpaper.com"},"allow":[r"^/$",r"^/p[1-6]/",r"^/primary/",r"^/secondary/",r"^/gce/",r"^/free/",r"^/20\d{2}/",r"^/worksheet"],"deny":[r"^/shop",r"^/cart",r"^/checkout",r"^/my-account",r"^/wp-admin",r"^/wp-json"]},
@@ -81,7 +81,7 @@ def crawl():
     if allowed(u,cfg) and u not in seen:seen.add(u);q.append((u,0))
    else:
     found.setdefault(item,meta(unquote(urlparse(item).path.rsplit("/",1)[-1]),item,item,site))
-  while q and count<12000:
+  while q and count<MAX_PAGES_PER_SITE:
    u,depth=q.popleft()
    if not can_fetch(u):continue
    try:r=session.get(u,timeout=22,allow_redirects=True);r.raise_for_status()
@@ -99,7 +99,7 @@ def crawl():
     link=clean(urljoin(r.url,a["href"].strip()));anchor=a.get_text(" ",strip=True)
     if is_pdf(link):
      found.setdefault(link,meta(anchor or title,link,r.url,site))
-    elif depth<12 and link not in seen and allowed(link,cfg):
+    elif depth<MAX_DEPTH and link not in seen and allowed(link,cfg):
      seen.add(link);q.append((link,depth+1))
    time.sleep(DELAY)
   print(site,"pages",count,"indexed",sum(x["source_site"]==site for x in found.values()))
