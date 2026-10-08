@@ -286,7 +286,7 @@ button.primary{
       <label>Teaching Scope</label>
       <div id="t-scopes"></div>
       <button type="button" class="primary" style="margin-top:10px;background:transparent;color:var(--accent);border:1px solid var(--accent);" onclick="addTutorScope()">＋ Add Teaching Scope</button>
-      <div class="meta" style="margin-top:7px;">Examples: P1-P6 All Subjects; S1-S4 Mathematics + Physics; JC1-JC2 H2 Mathematics. You can add multiple teaching scopes.</div>
+      <div class="meta" style="margin-top:7px;">Examples: P1-P6 All Subjects; S1-S4 E-Math + Physics; JC1-JC2 H2 Mathematics + H2 Chemistry. All subjects use the same standard subject names for parents and tutors.</div>
 
       <div class="row2">
         <div>
@@ -429,21 +429,21 @@ let currentTutorId = null;
 
 // 新加坡MOE课程大纲：各年级对应科目（简化整理，供家教平台参考）
 const MOE_SUBJECTS = {
-  'P1': ['英文 English','数学 Math','华文 Chinese','马来文 Malay','淡米尔文 Tamil'],
-  'P2': ['英文 English','数学 Math','华文 Chinese','马来文 Malay','淡米尔文 Tamil'],
-  'P3': ['英文 English','数学 Math','科学 Science','社会研究 Social Studies','华文 Chinese','高级华文 Higher Chinese','马来文 Malay','高级马来文 Higher Malay','淡米尔文 Tamil','高级淡米尔文 Higher Tamil'],
-  'P4': ['英文 English','数学 Math','科学 Science','社会研究 Social Studies','华文 Chinese','高级华文 Higher Chinese','马来文 Malay','高级马来文 Higher Malay','淡米尔文 Tamil','高级淡米尔文 Higher Tamil'],
-  'P5': ['英文 English','数学 Math','科学 Science','社会研究 Social Studies','华文 Chinese','高级华文 Higher Chinese','马来文 Malay','高级马来文 Higher Malay','淡米尔文 Tamil','高级淡米尔文 Higher Tamil'],
-  'P6': ['英文 English','数学 Math','科学 Science','社会研究 Social Studies','华文 Chinese','高级华文 Higher Chinese','马来文 Malay','高级马来文 Higher Malay','淡米尔文 Tamil','高级淡米尔文 Higher Tamil'],
-  'S1': ['英文 English','数学 Math','科学 Science','华文 Chinese','高级华文 Higher Chinese','马来文 Malay','淡米尔文 Tamil','地理 Geography','历史 History','社会研究 Social Studies','文学 Literature','美术 Art','设计与科技 D&T','食品与消费者教育 FCE','计算机 Computing'],
-  'S2': ['英文 English','数学 Math','科学 Science','社会研究 Social Studies','华文 Chinese','高级华文 Higher Chinese','马来文 Malay','淡米尔文 Tamil','地理 Geography','历史 History','文学 Literature','美术 Art','设计与科技 D&T','食品与消费者教育 FCE','计算机 Computing'],
-  'S3': ['英文 English','数学 E Math','附加数学 A-Math','物理 Physics','化学 Chemistry','生物 Biology','综合科学 Combined Science','华文 Chinese','高级华文 Higher Chinese','马来文 Malay','淡米尔文 Tamil','地理 Geography','历史 History','文学 Literature','综合人文 Combined Humanities','会计原理 POA','经济学 Economics','美术 Art','计算机 Computing','设计与科技 D&T','食品与消费者教育 FCE'],
-  'S4': ['英文 English','数学 E Math','附加数学 A-Math','物理 Physics','化学 Chemistry','生物 Biology','综合科学 Combined Science','华文 Chinese','高级华文 Higher Chinese','马来文 Malay','淡米尔文 Tamil','地理 Geography','历史 History','文学 Literature','综合人文 Combined Humanities','会计原理 POA','经济学 Economics','美术 Art','计算机 Computing','设计与科技 D&T','食品与消费者教育 FCE'],
-  'S5': ['英文 English','数学 E Math','附加数学 A-Math','物理 Physics','化学 Chemistry','生物 Biology','综合科学 Combined Science','社会研究 Social Studies','华文 Chinese','马来文 Malay','淡米尔文 Tamil','地理 Geography','历史 History','会计原理 POA','美术 Art','计算机 Computing','设计与科技 D&T','食品与消费者教育 FCE'],
-  'JC1': ['通论文 General Paper','数学 H1/H2 Math','物理 H2 Physics','化学 H2 Chemistry','生物 H2 Biology','经济学 Economics','历史 History','地理 Geography','文学 Literature','华文 Chinese','计算机 Computing','美术 Art'],
-  'JC2': ['通论文 General Paper','数学 H1/H2 Math','物理 H2 Physics','化学 H2 Chemistry','生物 H2 Biology','经济学 Economics','历史 History','地理 Geography','文学 Literature','华文 Chinese','计算机 Computing','美术 Art'],
-  'IB': ['英文 English (Lang A)','华文 Chinese (Lang B)','数学 Mathematics','物理 Physics','化学 Chemistry','生物 Biology','经济学 Economics','历史 History','地理 Geography','视觉艺术 Visual Arts'],
-  'IGCSE': ['英文 English','数学 Math','附加数学 Additional Math','物理 Physics','化学 Chemistry','生物 Biology','综合科学 Combined Science','华文 Chinese','经济学 Economics','商业研究 Business Studies','地理 Geography','历史 History','计算机科学 Computer Science','会计 Accounting']
+  'P1': ['English','Math','Chinese','Malay','Tamil'],
+  'P2': ['English','Math','Chinese','Malay','Tamil'],
+  'P3': ['English','Math','Science','Social Studies','Chinese','Higher Chinese','Malay','Higher Malay','Tamil','Higher Tamil'],
+  'P4': ['English','Math','Science','Social Studies','Chinese','Higher Chinese','Malay','Higher Malay','Tamil','Higher Tamil'],
+  'P5': ['English','Math','Science','Social Studies','Chinese','Higher Chinese','Malay','Higher Malay','Tamil','Higher Tamil'],
+  'P6': ['English','Math','Science','Social Studies','Chinese','Higher Chinese','Malay','Higher Malay','Tamil','Higher Tamil'],
+  'S1': ['English','Math','Science','Chinese','Higher Chinese','Malay','Tamil','Geography','History','Social Studies','Literature','Art','D&T','FCE','Computing'],
+  'S2': ['English','Math','Science','Social Studies','Chinese','Higher Chinese','Malay','Tamil','Geography','History','Literature','Art','D&T','FCE','Computing'],
+  'S3': ['English','E-Math','A-Math','Physics','Chemistry','Biology','Combined Science','Chinese','Higher Chinese','Malay','Tamil','Geography','History','Literature','Combined Humanities','POA','Economics','Art','Computing','D&T','FCE'],
+  'S4': ['English','E-Math','A-Math','Physics','Chemistry','Biology','Combined Science','Chinese','Higher Chinese','Malay','Tamil','Geography','History','Literature','Combined Humanities','POA','Economics','Art','Computing','D&T','FCE'],
+  'S5': ['English','E-Math','A-Math','Physics','Chemistry','Biology','Combined Science','Social Studies','Chinese','Malay','Tamil','Geography','History','POA','Art','Computing','D&T','FCE'],
+  'JC1': ['General Paper','H1/H2 Mathematics','H2 Physics','H2 Chemistry','H2 Biology','Economics','History','Geography','Literature','Chinese','Computing','Art'],
+  'JC2': ['General Paper','H1/H2 Mathematics','H2 Physics','H2 Chemistry','H2 Biology','Economics','History','Geography','Literature','Chinese','Computing','Art'],
+  'IB': ['English (Lang A)','Chinese (Lang B)','Mathematics','Physics','Chemistry','Biology','Economics','History','Geography','Visual Arts'],
+  'IGCSE': ['English','Math','Additional Math','Physics','Chemistry','Biology','Combined Science','Chinese','Economics','Business Studies','Geography','History','Computer Science','Accounting']
 };
 
 // Helper: given a bilingual "Chinese English" string, return just the English part (for the all-English tutor UI)
