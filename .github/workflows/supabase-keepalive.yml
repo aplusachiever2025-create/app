@@ -45,7 +45,7 @@ jobs:
           config = Path("supabase-config.js").read_text(encoding="utf-8")
 
           def read_config(name):
-              match = re.search(r"\\b" + re.escape(name) + r"\\s*:\\s*(['\"])(.*?)\\1", config)
+              match = re.search(re.escape(name) + r":\s*(['\"])(.*?)\1", config)
               if not match:
                   raise RuntimeError(f"Missing {name} in supabase-config.js")
               return match.group(2)
