@@ -1,0 +1,83 @@
+name: Supabase Keepalive (read-only)
+on:
+  workflow_dispatch:
+  schedule:
+    # Singapore time (UTC+8): 00:00, 02:24, 04:48, 07:12, 09:36
+    # 12:00, 14:24, 16:48, 19:12, 21:36
+    # GitHub Actions cron uses UTC.
+    - cron: "36 1 * * *"
+    - cron: "0 4 * * *"
+    - cron: "24 6 * * *"
+    - cron: "48 8 * * *"
+    - cron: "12 11 * * *"
+    - cron: "36 13 * * *"
+    - cron: "0 16 * * *"
+    - cron: "24 18 * * *"
+    - cron: "48 20 * * *"
+    - cron: "12 23 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-keepalive
+  cancel-in-progress: false
+
+jobs:
+  read-only-health-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run one minimal read-only database query
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+          from urllib.error import HTTPError, URLError
+          from urllib.parse import urlencode
+          from urllib.request import Request, urlopen
+
+          config = Path("supabase-config.js").read_text(encoding="utf-8")
+
+          def read_config(name):
+              match = re.search(r"\\b" + re.escape(name) + r"\\s*:\\s*(['\"])(.*?)\\1", config)
+              if not match:
+                  raise RuntimeError(f"Missing {name} in supabase-config.js")
+              return match.group(2)
+
+          base_url = read_config("url").rstrip("/")
+          anon_key = read_config("anonKey")
+
+          # exam_papers has an explicit public SELECT policy. Read only the id
+          # column and at most one row; do not read tutor/parent records.
+          query = urlencode({"select": "id", "limit": "1"})
+          request = Request(
+              f"{base_url}/rest/v1/exam_papers?{query}",
+              headers={
+                  "apikey": anon_key,
+                  "Authorization": f"Bearer {anon_key}",
+                  "Accept": "application/json",
+              },
+              method="GET",
+          )
+
+          try:
+              with urlopen(request, timeout=20) as response:
+                  body = response.read()
+                  if response.status != 200:
+                      raise RuntimeError(f"Supabase returned HTTP {response.status}")
+                  rows = json.loads(body or b"[]")
+                  if not isinstance(rows, list):
+                      raise RuntimeError("Unexpected response format")
+                  print(f"Supabase read-only check succeeded (HTTP {response.status}; rows returned: {len(rows)}). No data was changed.")
+          except HTTPError as error:
+              # Do not print response bodies or keys to logs.
+              raise SystemExit(f"Supabase read-only check failed with HTTP {error.code}") from None
+          except URLError:
+              raise SystemExit("Supabase read-only check failed: network or endpoint error") from None
+          PY
